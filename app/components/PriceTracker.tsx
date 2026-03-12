@@ -81,7 +81,7 @@ export default function PriceTracker() {
     try {
       const res = await fetch('/api/prices/scrape', {
         method: 'POST',
-        headers: { 'x-cron-secret': 'jarvis-cron' },
+        headers: { 'x-cron-secret': 'jarvis-cron-2026' },
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       // Wait a moment then refresh
@@ -170,78 +170,65 @@ export default function PriceTracker() {
             </button>
           </div>
         ) : (
-          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-[#2a2a2a]">
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Retailer
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Country
-                  </th>
-                  <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Price
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Stock
-                  </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider hidden sm:table-cell">
-                    Updated
-                  </th>
-                  <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    Link
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((entry, i) => (
-                  <tr
-                    key={entry.id}
-                    className={`border-b border-[#1f1f1f] last:border-0 hover:bg-[#1f1f1f] transition-colors ${
-                      i === 0 ? 'bg-[#00ff88]/5' : ''
-                    }`}
-                  >
-                    <td className="px-4 py-3 text-gray-200">
-                      {i === 0 && (
-                        <span className="text-[10px] bg-[#00ff88]/20 text-[#00ff88] px-1.5 py-0.5 rounded mr-2 font-medium">
-                          BEST
-                        </span>
-                      )}
-                      {entry.retailer}
-                    </td>
-                    <td className="px-4 py-3 text-gray-400">
-                      <span className="mr-1">{COUNTRY_FLAGS[entry.country] ?? '🌐'}</span>
-                      {entry.country}
-                    </td>
-                    <td className={`px-4 py-3 text-right font-semibold tabular-nums ${entry.inStock ? 'text-[#00ff88]' : 'text-gray-500'}`}>
-                      {entry.currency === 'EUR' ? '€' : entry.currency}{' '}
-                      {entry.price.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      {entry.inStock ? (
-                        <span className="text-[#00ff88] text-xs font-medium">Yes</span>
-                      ) : (
-                        <span className="text-gray-600 text-xs">No</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-gray-600 text-xs hidden sm:table-cell">
-                      {timeAgo(entry.scrapedAt)}
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <a
-                        href={entry.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-gray-500 hover:text-[#00ff88] transition-colors text-xs"
-                      >
-                        ↗
-                      </a>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-2">
+            {/* Best price highlight */}
+            {filtered[0] && (
+              <div className="bg-[#00ff88]/5 border border-[#00ff88]/20 rounded-xl p-4 flex items-center justify-between gap-3">
+                <div>
+                  <div className="text-[10px] font-bold text-[#00ff88] tracking-widest uppercase mb-1">Best Price</div>
+                  <div className="text-gray-200 font-semibold text-sm">{filtered[0].retailer}</div>
+                  <div className="text-gray-500 text-xs mt-0.5">
+                    {COUNTRY_FLAGS[filtered[0].country] ?? '🌐'} {filtered[0].country} · {timeAgo(filtered[0].scrapedAt)}
+                  </div>
+                </div>
+                <div className="text-right flex-shrink-0">
+                  <div className="text-2xl font-bold text-[#00ff88] tabular-nums">
+                    €{Math.round(filtered[0].price).toLocaleString('nl-NL')}
+                  </div>
+                  <div className="text-xs text-gray-500 mt-0.5">
+                    {filtered[0].inStock ? '✅ In stock' : '❌ Out of stock'}
+                  </div>
+                  <a href={filtered[0].url} target="_blank" rel="noopener noreferrer"
+                    className="text-[10px] text-[#00ff88]/60 hover:text-[#00ff88] transition-colors mt-1 inline-block">
+                    View →
+                  </a>
+                </div>
+              </div>
+            )}
+
+            {/* All prices list */}
+            <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden divide-y divide-[#1f1f1f]">
+              {filtered.map((entry, i) => (
+                <a
+                  key={entry.id}
+                  href={entry.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-white/5 transition-colors group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-lg flex-shrink-0">{COUNTRY_FLAGS[entry.country] ?? '🌐'}</span>
+                    <div className="min-w-0">
+                      <div className="text-gray-200 text-sm font-medium truncate">{entry.retailer}</div>
+                      <div className="text-gray-600 text-xs mt-0.5">{timeAgo(entry.scrapedAt)}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-shrink-0">
+                    <div className="text-right">
+                      <div className={`font-semibold tabular-nums text-sm ${entry.inStock ? 'text-gray-100' : 'text-gray-500'}`}>
+                        €{entry.price.toLocaleString('nl-NL', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                      </div>
+                      <div className="text-xs mt-0.5">
+                        {entry.inStock
+                          ? <span className="text-[#00ff88]">In stock</span>
+                          : <span className="text-gray-600">No stock</span>}
+                      </div>
+                    </div>
+                    <span className="text-gray-600 group-hover:text-gray-400 text-xs">↗</span>
+                  </div>
+                </a>
+              ))}
+            </div>
           </div>
         )}
       </div>

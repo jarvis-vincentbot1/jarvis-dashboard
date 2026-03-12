@@ -8,55 +8,30 @@ interface Props {
   onLogout: () => void
 }
 
+// ── Icons ────────────────────────────────────────────────────────────────────
+
 function GridIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-      <rect x="3" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="3" y="14" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
     </svg>
   )
 }
 
 function ChatIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  )
-}
-
-function CalcIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-      <rect x="4" y="2" width="16" height="20" rx="2" />
-      <line x1="8" y1="7" x2="16" y2="7" />
-      <circle cx="8" cy="11" r="0.5" fill="currentColor" />
-      <circle cx="12" cy="11" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="11" r="0.5" fill="currentColor" />
-      <circle cx="8" cy="15" r="0.5" fill="currentColor" />
-      <circle cx="12" cy="15" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="15" r="0.5" fill="currentColor" />
-      <circle cx="8" cy="19" r="0.5" fill="currentColor" />
-      <circle cx="12" cy="19" r="0.5" fill="currentColor" />
-      <circle cx="16" cy="19" r="0.5" fill="currentColor" />
-    </svg>
-  )
-}
-
-function TodoIcon({ active }: { active: boolean }) {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-      <path d="M9 11l3 3L22 4" />
-      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
     </svg>
   )
 }
 
 function MonitorIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
       <rect x="2" y="3" width="20" height="14" rx="2" />
       <line x1="8" y1="21" x2="16" y2="21" />
       <line x1="12" y1="17" x2="12" y2="21" />
@@ -64,18 +39,45 @@ function MonitorIcon({ active }: { active: boolean }) {
   )
 }
 
-function TagIcon({ active }: { active: boolean }) {
+function GpuIcon({ active }: { active: boolean }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
-      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
-      <line x1="7" y1="7" x2="7.01" y2="7" />
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="7" width="20" height="10" rx="2" />
+      <path d="M6 7V4" /><path d="M10 7V4" /><path d="M14 7V4" /><path d="M18 7V4" />
+      <path d="M6 21v-4" /><path d="M10 21v-4" /><path d="M14 21v-4" /><path d="M18 21v-4" />
+      <circle cx="8" cy="12" r="1.5" fill="currentColor" stroke="none" />
+      <circle cx="16" cy="12" r="1.5" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
+function TodoIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  )
+}
+
+function CalcIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <line x1="8" y1="7" x2="16" y2="7" />
+      <line x1="8" y1="12" x2="8.01" y2="12" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="12" x2="12.01" y2="12" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="16" y1="12" x2="16.01" y2="12" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="8" y1="16" x2="8.01" y2="16" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="12" y1="16" x2="12.01" y2="16" strokeWidth="2.5" strokeLinecap="round"/>
+      <line x1="16" y1="16" x2="16.01" y2="16" strokeWidth="2.5" strokeLinecap="round"/>
     </svg>
   )
 }
 
 function SignOutIcon() {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
       <polyline points="16 17 21 12 16 7" />
       <line x1="21" y1="12" x2="9" y2="12" />
@@ -83,45 +85,58 @@ function SignOutIcon() {
   )
 }
 
+// ── Nav config ────────────────────────────────────────────────────────────────
+
 const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean }> }[] = [
-  { id: 'dashboard', label: 'Dashboard', Icon: GridIcon },
-  { id: 'chat', label: 'Chat', Icon: ChatIcon },
-  { id: 'calculator', label: 'Calculator', Icon: CalcIcon },
-  { id: 'monitoring', label: 'Monitoring', Icon: MonitorIcon },
-  { id: 'todo', label: 'To-Do', Icon: TodoIcon },
-  { id: 'prices', label: 'Prices', Icon: TagIcon },
+  { id: 'dashboard', label: 'Home',       Icon: GridIcon },
+  { id: 'chat',      label: 'Chat',       Icon: ChatIcon },
+  { id: 'prices',    label: 'RTX 5090',   Icon: GpuIcon },
+  { id: 'monitoring',label: 'Servers',    Icon: MonitorIcon },
+  { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
+  { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
 ]
+
+// ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
   return (
     <>
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex flex-col w-[220px] bg-[#1a1a1a] border-r border-[#2a2a2a] h-full flex-shrink-0">
-        <div className="px-5 h-14 flex items-center border-b border-[#2a2a2a] flex-shrink-0">
-          <span className="text-[#00ff88] font-bold text-xl tracking-wider">JARVIS</span>
+      {/* ── Desktop sidebar ── */}
+      <aside className="hidden md:flex flex-col w-[200px] bg-[#141414] border-r border-white/5 h-full flex-shrink-0">
+        {/* Logo */}
+        <div className="px-5 h-14 flex items-center border-b border-white/5 flex-shrink-0 gap-2">
+          <span className="w-2 h-2 rounded-full bg-[#00ff88] shadow-[0_0_6px_#00ff88]" />
+          <span className="text-white font-bold text-lg tracking-[0.2em]">JARVIS</span>
         </div>
 
-        <nav className="flex-1 py-3 px-2 space-y-0.5">
+        {/* Nav */}
+        <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto">
           {NAV_ITEMS.map(({ id, label, Icon }) => (
             <button
               key={id}
               onClick={() => onNavChange(id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
                 activeNav === id
-                  ? 'text-[#00ff88] bg-[#00ff88]/10'
-                  : 'text-gray-500 hover:text-gray-300 hover:bg-[#1f1f1f]'
+                  ? 'text-[#00ff88] bg-[#00ff88]/10 shadow-inner'
+                  : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
               }`}
             >
-              <Icon active={activeNav === id} />
-              {label}
+              <span className="flex-shrink-0">
+                <Icon active={activeNav === id} />
+              </span>
+              <span className="truncate">{label}</span>
+              {activeNav === id && (
+                <span className="ml-auto w-1 h-4 rounded-full bg-[#00ff88] flex-shrink-0" />
+              )}
             </button>
           ))}
         </nav>
 
-        <div className="px-2 py-3 border-t border-[#2a2a2a] flex-shrink-0">
+        {/* Sign out */}
+        <div className="px-2 py-3 border-t border-white/5 flex-shrink-0">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:text-gray-400 hover:bg-[#1f1f1f] transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:text-gray-400 hover:bg-white/5 transition-colors"
           >
             <SignOutIcon />
             Sign out
@@ -129,23 +144,37 @@ export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
         </div>
       </aside>
 
-      {/* Mobile bottom tab bar — max 5 items */}
+      {/* ── Mobile top header ── */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-12 bg-[#141414] border-b border-white/5">
+        <div className="flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] shadow-[0_0_4px_#00ff88]" />
+          <span className="text-white font-bold text-base tracking-[0.15em]">JARVIS</span>
+        </div>
+        <span className="text-xs text-gray-500 capitalize">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</span>
+      </div>
+
+      {/* ── Mobile bottom tab bar ── */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around border-t border-[#2a2a2a] bg-[#1a1a1a] z-30"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#141414] border-t border-white/5"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       >
-        {NAV_ITEMS.slice(0, 5).map(({ id, label, Icon }) => (
-          <button
-            key={id}
-            onClick={() => onNavChange(id)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors active:opacity-70 ${
-              activeNav === id ? 'text-[#00ff88]' : 'text-gray-600'
-            }`}
-          >
-            <Icon active={activeNav === id} />
-            <span className="truncate w-full text-center px-0.5">{label}</span>
-          </button>
-        ))}
+        <div className="flex items-stretch">
+          {NAV_ITEMS.slice(0, 5).map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => onNavChange(id)}
+              className={`flex-1 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 min-h-[52px] transition-all active:scale-95 ${
+                activeNav === id ? 'text-[#00ff88]' : 'text-gray-600 hover:text-gray-400'
+              }`}
+            >
+              {activeNav === id && (
+                <span className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#00ff88] rounded-full" />
+              )}
+              <Icon active={activeNav === id} />
+              <span className="text-[9px] font-semibold tracking-wide leading-none">{label}</span>
+            </button>
+          ))}
+        </div>
       </div>
     </>
   )

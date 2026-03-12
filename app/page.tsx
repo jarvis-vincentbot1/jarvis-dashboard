@@ -126,7 +126,8 @@ export default function DashboardPage() {
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} onLogout={handleLogout} />
 
       <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        <div className="flex-1 overflow-hidden [&>*]:h-full pb-14 md:pb-0">
+        {/* pt-12 = mobile top header height; pb-14 = mobile bottom tab bar height */}
+        <div className="flex-1 overflow-hidden [&>*]:h-full pt-12 pb-14 md:pt-0 md:pb-0">
           {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
