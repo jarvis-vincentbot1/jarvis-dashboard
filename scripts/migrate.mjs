@@ -130,6 +130,48 @@ async function migrate() {
 
     CREATE INDEX IF NOT EXISTS "Todo_projectId_idx" ON "Todo"("projectId");
     CREATE INDEX IF NOT EXISTS "Todo_done_idx" ON "Todo"("done");
+
+    -- Price tracker tables
+    CREATE TABLE IF NOT EXISTS "Product" (
+      "id"        TEXT NOT NULL,
+      "name"      TEXT NOT NULL,
+      "category"  TEXT NOT NULL DEFAULT 'gpu',
+      "active"    BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Product_pkey" PRIMARY KEY ("id")
+    );
+
+    CREATE TABLE IF NOT EXISTS "PriceEntry" (
+      "id"        TEXT NOT NULL,
+      "productId" TEXT NOT NULL,
+      "retailer"  TEXT NOT NULL,
+      "country"   TEXT NOT NULL,
+      "price"     DOUBLE PRECISION NOT NULL,
+      "currency"  TEXT NOT NULL DEFAULT 'EUR',
+      "inStock"   BOOLEAN NOT NULL DEFAULT false,
+      "url"       TEXT NOT NULL,
+      "scrapedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "PriceEntry_pkey" PRIMARY KEY ("id")
+    );
+
+    -- Add FK on PriceEntry if not exists
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'PriceEntry_productId_fkey'
+          AND table_name = 'PriceEntry'
+      ) THEN
+        ALTER TABLE "PriceEntry"
+          ADD CONSTRAINT "PriceEntry_productId_fkey"
+          FOREIGN KEY ("productId")
+          REFERENCES "Product"("id")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
+    CREATE INDEX IF NOT EXISTS "PriceEntry_productId_idx" ON "PriceEntry"("productId");
+    CREATE INDEX IF NOT EXISTS "PriceEntry_scrapedAt_idx" ON "PriceEntry"("scrapedAt");
   `)
 
   console.log('✅ Migrations applied')

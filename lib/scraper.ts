@@ -1,6 +1,4 @@
-import { PrismaClient } from '@prisma/client'
-
-const prisma = new PrismaClient()
+import { prisma } from '@/lib/prisma'
 
 const USER_AGENTS = [
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
@@ -246,5 +244,4 @@ export async function scrapeRTX5090Prices(): Promise<void> {
   }
 
   console.log(`[Scraper] Done. Saved ${totalSaved} price entries.`)
-  await prisma.$disconnect()
 }
