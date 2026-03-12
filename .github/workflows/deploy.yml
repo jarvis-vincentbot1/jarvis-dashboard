@@ -6,7 +6,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: vincentkuiler/jarvis-dashboard
+  IMAGE_NAME: jarvis-vincentbot1/jarvis-dashboard
 
 jobs:
   build-and-deploy:
@@ -35,7 +35,7 @@ jobs:
           context: .
           platforms: linux/amd64
           push: true
-          tags: ghcr.io/vincentkuiler/jarvis-dashboard:latest
+          tags: ghcr.io/jarvis-vincentbot1/jarvis-dashboard:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
