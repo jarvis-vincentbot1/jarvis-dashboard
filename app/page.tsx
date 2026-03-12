@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Sidebar, { NavItem } from './components/Sidebar'
 import Dashboard from './components/Dashboard'
@@ -8,23 +8,37 @@ import ChatSection from './components/ChatSection'
 import TodoPanel from './components/TodoPanel'
 import VatCalculator from './components/VatCalculator'
 
-interface Project {
+interface Chat {
   id: string
   name: string
-  description: string | null
-  color: string
+  projectId: string | null
+  createdAt: string
+  updatedAt: string
   _count?: { messages: number }
+  lastMessage?: { role: string; content: string; createdAt: string } | null
+}
+
+interface ProjectGroup {
+  id: string
+  name: string
+  color: string
+  chats: Chat[]
+}
+
+interface ChatData {
+  standalone: Chat[]
+  projects: ProjectGroup[]
 }
 
 export default function DashboardPage() {
   const [activeNav, setActiveNav] = useState<NavItem>('dashboard')
-  const [projects, setProjects] = useState<Project[]>([])
-  const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
-  const [loadingProjects, setLoadingProjects] = useState(true)
+  const [chatData, setChatData] = useState<ChatData>({ standalone: [], projects: [] })
+  const [activeChatId, setActiveChatId] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
   const router = useRouter()
 
-  useEffect(() => {
-    fetch('/api/projects')
+  const loadChats = useCallback(() => {
+    return fetch('/api/chats')
       .then((r) => {
         if (r.status === 401) {
           router.push('/login')
@@ -33,66 +47,103 @@ export default function DashboardPage() {
         return r.json()
       })
       .then((data) => {
-        if (Array.isArray(data)) {
-          setProjects(data)
-          if (data.length > 0) setActiveProjectId(data[0].id)
+        if (data) {
+          setChatData(data)
+          // Auto-select first chat if none selected
+          setActiveChatId((prev) => {
+            if (prev) return prev
+            return data.standalone[0]?.id ?? data.projects[0]?.chats[0]?.id ?? null
+          })
         }
       })
       .catch(console.error)
-      .finally(() => setLoadingProjects(false))
   }, [router])
+
+  useEffect(() => {
+    loadChats().finally(() => setLoading(false))
+  }, [loadChats])
 
   async function handleLogout() {
     await fetch('/api/auth/logout', { method: 'POST' })
     router.push('/login')
   }
 
-  function handleProjectCreated(project: Project) {
-    setProjects((prev) => [project, ...prev])
-    setActiveProjectId(project.id)
+  function handleChatCreated(chat: Chat, projectId?: string) {
+    setChatData((prev) => {
+      if (!projectId) {
+        return { ...prev, standalone: [chat, ...prev.standalone] }
+      }
+      return {
+        ...prev,
+        projects: prev.projects.map((p) =>
+          p.id === projectId ? { ...p, chats: [chat, ...p.chats] } : p
+        ),
+      }
+    })
+    setActiveChatId(chat.id)
   }
 
-  function handleProjectDeleted(id: string) {
-    setProjects((prev) => prev.filter((p) => p.id !== id))
-    setActiveProjectId((prev) => {
-      if (prev === id) {
-        const remaining = projects.filter((p) => p.id !== id)
-        return remaining.length > 0 ? remaining[0].id : null
-      }
-      return prev
+  function handleChatDeleted(id: string) {
+    setChatData((prev) => ({
+      standalone: prev.standalone.filter((c) => c.id !== id),
+      projects: prev.projects.map((p) => ({
+        ...p,
+        chats: p.chats.filter((c) => c.id !== id),
+      })),
+    }))
+    setActiveChatId((prev) => {
+      if (prev !== id) return prev
+      // Pick next available chat
+      const allChats = [
+        ...chatData.standalone.filter((c) => c.id !== id),
+        ...chatData.projects.flatMap((p) => p.chats.filter((c) => c.id !== id)),
+      ]
+      return allChats[0]?.id ?? null
     })
   }
 
-  function handleOpenConversation(id: string) {
-    setActiveProjectId(id)
+  function handleProjectCreated(project: ProjectGroup) {
+    setChatData((prev) => ({
+      ...prev,
+      projects: [...prev.projects, project],
+    }))
+  }
+
+  function handleOpenChat(chatId: string) {
+    setActiveChatId(chatId)
     setActiveNav('chat')
   }
+
+  const allChats = [
+    ...chatData.standalone,
+    ...chatData.projects.flatMap((p) => p.chats),
+  ]
 
   return (
     <div className="flex h-screen overflow-hidden bg-[#0f0f0f]">
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} onLogout={handleLogout} />
 
-      {/* Main content — add bottom padding on mobile for the Sidebar's fixed tab bar */}
       <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
         <div className="flex-1 overflow-hidden [&>*]:h-full pb-14 md:pb-0">
-          {loadingProjects ? (
+          {loading ? (
             <div className="flex items-center justify-center h-full">
               <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeNav === 'dashboard' ? (
-            <Dashboard projects={projects} onOpenConversation={handleOpenConversation} />
+            <Dashboard allChats={allChats} onOpenChat={handleOpenChat} />
           ) : activeNav === 'chat' ? (
             <ChatSection
-              projects={projects}
-              activeProjectId={activeProjectId}
-              onActiveProjectChange={setActiveProjectId}
+              chatData={chatData}
+              activeChatId={activeChatId}
+              onActiveChatChange={setActiveChatId}
+              onChatCreated={handleChatCreated}
+              onChatDeleted={handleChatDeleted}
               onProjectCreated={handleProjectCreated}
-              onProjectDeleted={handleProjectDeleted}
             />
           ) : activeNav === 'calculator' ? (
             <VatCalculator />
           ) : (
-            <TodoPanel projectId={activeProjectId || undefined} />
+            <TodoPanel />
           )}
         </div>
       </main>

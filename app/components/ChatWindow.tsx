@@ -9,20 +9,14 @@ interface Message {
   createdAt: string
 }
 
-interface Project {
+interface Chat {
   id: string
   name: string
-  description: string | null
-  color: string
 }
 
 interface Props {
-  project: Project
-  onDeleteProject: (id: string) => void
-}
-
-function formatContent(content: string) {
-  return content
+  chat: Chat
+  onDeleteChat: (id: string) => void
 }
 
 interface ModelOption {
@@ -32,7 +26,7 @@ interface ModelOption {
   description: string
 }
 
-export default function ChatWindow({ project, onDeleteProject }: Props) {
+export default function ChatWindow({ chat, onDeleteChat }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -60,20 +54,20 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
-  // Load messages when project changes
+  // Load messages when chat changes
   useEffect(() => {
     setMessages([])
     setStreamingContent('')
     setLoading(true)
 
-    fetch(`/api/projects/${project.id}/messages`)
+    fetch(`/api/chats/${chat.id}/messages`)
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setMessages(data)
       })
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [project.id])
+  }, [chat.id])
 
   useEffect(() => {
     scrollToBottom()
@@ -102,7 +96,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id, message: text, model: selectedModel }),
+        body: JSON.stringify({ chatId: chat.id, message: text, model: selectedModel }),
         signal: abortRef.current.signal,
       })
 
@@ -153,7 +147,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
               setMessages((prev) => [...prev, assistantMsg])
               setStreamingContent('')
               // Reload messages to get real IDs
-              fetch(`/api/projects/${project.id}/messages`)
+              fetch(`/api/chats/${chat.id}/messages`)
                 .then((r) => r.json())
                 .then((data) => {
                   if (Array.isArray(data)) setMessages(data)
@@ -202,13 +196,13 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
   }
 
   async function handleDelete() {
-    if (!confirm(`Delete project "${project.name}" and all its messages?`)) return
+    if (!confirm(`Delete chat "${chat.name}" and all its messages?`)) return
     setShowMenu(false)
     try {
-      await fetch(`/api/projects/${project.id}`, { method: 'DELETE' })
-      onDeleteProject(project.id)
+      await fetch(`/api/chats/${chat.id}`, { method: 'DELETE' })
+      onDeleteChat(chat.id)
     } catch {
-      alert('Failed to delete project')
+      alert('Failed to delete chat')
     }
   }
 
@@ -217,16 +211,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 md:px-6 h-14 border-b border-[#2a2a2a] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span
-            className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-            style={{ backgroundColor: project.color }}
-          />
-          <div>
-            <h1 className="text-sm font-semibold text-gray-100">{project.name}</h1>
-            {project.description && (
-              <p className="text-xs text-gray-600 truncate max-w-xs">{project.description}</p>
-            )}
-          </div>
+          <h1 className="text-sm font-semibold text-gray-100">{chat.name}</h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -277,7 +262,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
                   onClick={handleDelete}
                   className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#242424] transition-colors"
                 >
-                  Delete Project
+                  Delete Chat
                 </button>
               </div>
             )}
@@ -293,16 +278,11 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
 
         {!loading && messages.length === 0 && !streaming && (
           <div className="flex flex-col items-center justify-center h-full text-center">
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl"
-              style={{ backgroundColor: `${project.color}20`, border: `1px solid ${project.color}40` }}
-            >
-              <span style={{ color: project.color }}>◈</span>
+            <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl bg-[#00ff88]/10 border border-[#00ff88]/20">
+              <span className="text-[#00ff88]">◈</span>
             </div>
-            <h2 className="text-gray-300 font-medium mb-1">{project.name}</h2>
-            <p className="text-gray-600 text-sm">
-              {project.description || 'Start a conversation about this project.'}
-            </p>
+            <h2 className="text-gray-300 font-medium mb-1">{chat.name}</h2>
+            <p className="text-gray-600 text-sm">Start a conversation.</p>
           </div>
         )}
 
@@ -348,7 +328,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
             <div className="max-w-[80%] md:max-w-[70%] bg-[#1f1f1f] rounded-2xl rounded-bl-sm border border-[#2a2a2a] px-4 py-3 text-sm text-gray-200">
               {streamingContent ? (
                 <div
-                  className={`prose-jarvis ${!streamingContent ? '' : 'cursor-blink'}`}
+                  className="prose-jarvis cursor-blink"
                   dangerouslySetInnerHTML={{
                     __html: formatMessageHtml(streamingContent),
                   }}
@@ -375,7 +355,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Message ${project.name}...`}
+            placeholder={`Message ${chat.name}...`}
             rows={1}
             disabled={streaming}
             className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-[#00ff88] transition-colors resize-none max-h-32 text-sm disabled:opacity-50"
@@ -410,35 +390,23 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
 }
 
 function formatMessageHtml(text: string): string {
-  // Basic markdown-like formatting
   let html = text
-    // Escape HTML
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    // Code blocks
     .replace(/```(\w*)\n?([\s\S]*?)```/g, '<pre><code>$2</code></pre>')
-    // Inline code
     .replace(/`([^`]+)`/g, '<code>$1</code>')
-    // Bold
     .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    // Italic
     .replace(/\*([^*]+)\*/g, '<em>$1</em>')
-    // Headers
     .replace(/^### (.+)$/gm, '<h3>$1</h3>')
     .replace(/^## (.+)$/gm, '<h2>$1</h2>')
     .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-    // Unordered lists
     .replace(/^[•\-\*] (.+)$/gm, '<li>$1</li>')
     .replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>')
-    // Numbered lists
     .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-    // Paragraphs (double newline)
     .replace(/\n\n/g, '</p><p>')
-    // Single newlines
     .replace(/\n/g, '<br />')
 
-  // Wrap in paragraph if not already wrapped
   if (!html.startsWith('<')) {
     html = `<p>${html}</p>`
   }

@@ -37,10 +37,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { projectId, message, model } = await request.json()
+  const { chatId, message, model } = await request.json()
 
-  if (!projectId || !message?.trim()) {
-    return NextResponse.json({ error: 'projectId and message are required' }, { status: 400 })
+  if (!chatId || !message?.trim()) {
+    return NextResponse.json({ error: 'chatId and message are required' }, { status: 400 })
   }
 
   const trimmed = message.trim()
@@ -49,14 +49,14 @@ export async function POST(request: Request) {
   const addMatch = trimmed.match(/^(?:add (?:to-?do|reminder|task)|reminder):\s*(.+)/i)
   if (addMatch) {
     const text = addMatch[1].trim()
-    await prisma.todo.create({ data: { text, projectId } })
+    await prisma.todo.create({ data: { text } })
     const quickReply = `Added: ${text} ✅`
     return Response.json({ quickReply })
   }
 
   if (/^(?:list to-?dos?|what are my to-?dos?|show to-?dos?)\??$/i.test(trimmed)) {
     const todos = await prisma.todo.findMany({
-      where: { projectId, done: false },
+      where: { done: false },
       orderBy: { createdAt: 'desc' },
     })
     const quickReply = todos.length === 0
@@ -68,7 +68,7 @@ export async function POST(request: Request) {
   const doneMatch = trimmed.match(/^(?:done|complete|mark done|finish):\s*(.+)/i)
   if (doneMatch) {
     const search = doneMatch[1].trim().toLowerCase()
-    const todos = await prisma.todo.findMany({ where: { projectId, done: false } })
+    const todos = await prisma.todo.findMany({ where: { done: false } })
     const match = todos.find((t) => t.text.toLowerCase().includes(search))
     if (match) {
       await prisma.todo.update({ where: { id: match.id }, data: { done: true } })
@@ -78,21 +78,22 @@ export async function POST(request: Request) {
   }
   // --- End todo shortcuts ---
 
-  // Verify project exists
-  const project = await prisma.project.findUnique({ where: { id: projectId } })
-  if (!project) {
-    return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  // Verify chat exists
+  const chat = await prisma.chat.findUnique({ where: { id: chatId } })
+  if (!chat) {
+    return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
   }
 
   // Save user message
   await prisma.message.create({
-    data: { projectId, role: 'user', content: message.trim() },
+    data: { chatId, role: 'user', content: message.trim() },
   })
 
-  // Load full conversation history for this project
+  // Load last 20 messages from this chat
   const history = await prisma.message.findMany({
-    where: { projectId },
+    where: { chatId },
     orderBy: { createdAt: 'asc' },
+    take: 20,
   })
 
   const messages = history.map((msg) => ({
@@ -103,7 +104,7 @@ export async function POST(request: Request) {
   // Select model — default to Claude Sonnet
   const selectedModel = model || 'anthropic/claude-sonnet-4-6'
 
-  const systemPrompt = `You are Jarvis, a personal AI assistant for the project "${project.name}"${project.description ? ` — ${project.description}` : ''}. Be concise, direct, and helpful. You have full context of everything discussed in this project.`
+  const systemPrompt = `You are Jarvis, a personal AI assistant. Be concise, direct, and helpful.`
 
   // Stream via OpenClaw's OpenAI-compatible endpoint
   const encoder = new TextEncoder()
@@ -152,10 +153,10 @@ export async function POST(request: Request) {
             if (data === '[DONE]') {
               // Save full assistant response
               await prisma.message.create({
-                data: { projectId, role: 'assistant', content: fullContent },
+                data: { chatId, role: 'assistant', content: fullContent },
               })
-              await prisma.project.update({
-                where: { id: projectId },
+              await prisma.chat.update({
+                where: { id: chatId },
                 data: { updatedAt: new Date() },
               })
               controller.enqueue(encoder.encode('data: [DONE]\n\n'))
@@ -180,10 +181,10 @@ export async function POST(request: Request) {
         // If stream ended without [DONE]
         if (fullContent) {
           await prisma.message.create({
-            data: { projectId, role: 'assistant', content: fullContent },
+            data: { chatId, role: 'assistant', content: fullContent },
           })
-          await prisma.project.update({
-            where: { id: projectId },
+          await prisma.chat.update({
+            where: { id: chatId },
             data: { updatedAt: new Date() },
           })
         }

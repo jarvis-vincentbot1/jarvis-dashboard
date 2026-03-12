@@ -19,7 +19,7 @@ export async function GET() {
   const projects = await prisma.project.findMany({
     orderBy: { updatedAt: 'desc' },
     include: {
-      _count: { select: { messages: true } },
+      _count: { select: { chats: true } },
     },
   })
 
@@ -32,7 +32,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { name, description, color } = await request.json()
+  const { name, color } = await request.json()
   if (!name?.trim()) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 })
   }
@@ -40,7 +40,6 @@ export async function POST(request: Request) {
   const project = await prisma.project.create({
     data: {
       name: name.trim(),
-      description: description?.trim() || null,
       color: color || '#00ff88',
     },
   })

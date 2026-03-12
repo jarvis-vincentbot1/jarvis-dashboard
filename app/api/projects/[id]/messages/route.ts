@@ -20,7 +20,7 @@ export async function GET(
   const { id } = await params
 
   const messages = await prisma.message.findMany({
-    where: { projectId: id },
+    where: { chat: { projectId: id } },
     orderBy: { createdAt: 'asc' },
   })
 

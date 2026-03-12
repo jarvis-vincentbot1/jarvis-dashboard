@@ -2,27 +2,26 @@
 
 import { useEffect, useState } from 'react'
 
-interface Project {
+interface Chat {
   id: string
   name: string
-  description: string | null
-  color: string
-  _count?: { messages: number }
-}
-
-interface LastMessage {
-  role: string
-  content: string
+  projectId: string | null
   createdAt: string
+  updatedAt: string
+  _count?: { messages: number }
+  lastMessage?: { role: string; content: string; createdAt: string } | null
 }
 
-interface ConversationCard extends Project {
-  lastMessage?: LastMessage | null
+interface Agent {
+  id?: string
+  name?: string
+  status?: string
+  startedAt?: string
 }
 
 interface Props {
-  projects: Project[]
-  onOpenConversation: (id: string) => void
+  allChats: Chat[]
+  onOpenChat: (id: string) => void
 }
 
 function getGreeting() {
@@ -32,33 +31,42 @@ function getGreeting() {
   return 'evening'
 }
 
-export default function Dashboard({ projects, onOpenConversation }: Props) {
-  const [conversations, setConversations] = useState<ConversationCard[]>([])
-  const [loadingMessages, setLoadingMessages] = useState(true)
+function timeAgo(dateStr: string) {
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  return `${Math.floor(hrs / 24)}d ago`
+}
 
+function formatNum(n: number) {
+  if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + 'M'
+  if (n >= 1_000) return (n / 1_000).toFixed(1) + 'k'
+  return String(n)
+}
+
+export default function Dashboard({ allChats, onOpenChat }: Props) {
+  const [agents, setAgents] = useState<Agent[] | null>(null)
+  const [usage, setUsage] = useState<{ input_tokens?: number; output_tokens?: number; error?: string } | null>(null)
+
+  // Fetch agents and usage in parallel
   useEffect(() => {
-    if (projects.length === 0) {
-      setConversations([])
-      setLoadingMessages(false)
-      return
-    }
+    fetch('/api/agents')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setAgents(data?.agents ?? data ?? []))
+      .catch(() => setAgents([]))
 
-    setLoadingMessages(true)
-    Promise.all(
-      projects.map(async (project) => {
-        try {
-          const res = await fetch(`/api/projects/${project.id}/lastMessage`)
-          const lastMessage = res.ok ? await res.json() : null
-          return { ...project, lastMessage }
-        } catch {
-          return { ...project, lastMessage: null }
-        }
-      })
-    ).then((data) => {
-      setConversations(data)
-      setLoadingMessages(false)
-    })
-  }, [projects])
+    fetch('/api/usage')
+      .then(r => r.ok ? r.json() : null)
+      .then(data => setUsage(data ?? { error: 'unavailable' }))
+      .catch(() => setUsage({ error: 'unavailable' }))
+  }, [])
+
+  const recentChats = [...allChats]
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+    .slice(0, 6)
 
   return (
     <div className="flex flex-col h-full overflow-y-auto bg-[#0f0f0f]">
@@ -69,70 +77,130 @@ export default function Dashboard({ projects, onOpenConversation }: Props) {
             Good {getGreeting()}, Vincent
           </h1>
           <p className="text-gray-500 text-sm mt-1">
-            {projects.length} conversation{projects.length !== 1 ? 's' : ''}
+            {allChats.length} chat{allChats.length !== 1 ? 's' : ''}
           </p>
         </div>
 
-        {/* Conversations widget */}
+        {/* Widgets row */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+          {/* Active Agents widget */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88]" />
+              <h2 className="text-xs text-gray-500 uppercase tracking-widest font-semibold">
+                Active Agents
+              </h2>
+            </div>
+            {agents === null ? (
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-3 h-3 border border-[#00ff88] border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-gray-600">Loading...</span>
+              </div>
+            ) : agents.length === 0 ? (
+              <p className="text-sm text-gray-600 italic">No agents running</p>
+            ) : (
+              <ul className="space-y-2">
+                {agents.slice(0, 5).map((agent, i) => (
+                  <li key={agent.id ?? i} className="flex items-center justify-between">
+                    <span className="text-sm text-gray-300 truncate">
+                      {agent.name ?? agent.id ?? `Agent ${i + 1}`}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${
+                      agent.status === 'running'
+                        ? 'bg-[#00ff88]/10 text-[#00ff88]'
+                        : 'bg-gray-800 text-gray-500'
+                    }`}>
+                      {agent.status ?? 'unknown'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {/* Claude Usage widget */}
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+              <h2 className="text-xs text-gray-500 uppercase tracking-widest font-semibold">
+                Claude Usage Today
+              </h2>
+            </div>
+            {usage === null ? (
+              <div className="flex items-center gap-2 py-2">
+                <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin" />
+                <span className="text-xs text-gray-600">Loading...</span>
+              </div>
+            ) : usage.error ? (
+              <p className="text-sm text-gray-600 italic">Usage data unavailable</p>
+            ) : (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Input tokens</span>
+                  <span className="text-sm font-mono text-gray-200">
+                    {usage.input_tokens != null ? formatNum(usage.input_tokens) : '—'}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Output tokens</span>
+                  <span className="text-sm font-mono text-gray-200">
+                    {usage.output_tokens != null ? formatNum(usage.output_tokens) : '—'}
+                  </span>
+                </div>
+                {usage.input_tokens != null && usage.output_tokens != null && (
+                  <div className="flex items-center justify-between pt-1 border-t border-[#2a2a2a]">
+                    <span className="text-xs text-gray-500">Total</span>
+                    <span className="text-sm font-mono text-purple-400">
+                      {formatNum(usage.input_tokens + usage.output_tokens)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Recent Chats widget */}
         <div>
           <h2 className="text-xs text-gray-600 uppercase tracking-widest mb-3">
-            Recent Conversations
+            Recent Chats
           </h2>
 
-          {loadingMessages ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="w-5 h-5 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : conversations.length === 0 ? (
+          {recentChats.length === 0 ? (
             <div className="text-center py-12 text-gray-600 text-sm">
-              No conversations yet. Go to Chat to start one.
+              No chats yet. Go to Chat to start one.
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              {conversations.map((conv) => (
+              {recentChats.map((chat) => (
                 <button
-                  key={conv.id}
-                  onClick={() => onOpenConversation(conv.id)}
+                  key={chat.id}
+                  onClick={() => onOpenChat(chat.id)}
                   className="text-left bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 hover:border-[#3a3a3a] hover:bg-[#1f1f1f] transition-colors"
                 >
                   <div className="flex items-center justify-between gap-3 mb-2">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: conv.color }}
-                      />
-                      <span className="font-medium text-gray-200 text-sm truncate">
-                        {conv.name}
-                      </span>
-                    </div>
+                    <span className="font-medium text-gray-200 text-sm truncate">
+                      {chat.name}
+                    </span>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {conv.lastMessage && (
+                      {chat.lastMessage && (
                         <span
                           className={`w-2 h-2 rounded-full ${
-                            conv.lastMessage.role === 'assistant'
-                              ? 'bg-[#00ff88]'
-                              : 'bg-gray-600'
+                            chat.lastMessage.role === 'assistant' ? 'bg-[#00ff88]' : 'bg-gray-600'
                           }`}
-                          title={
-                            conv.lastMessage.role === 'assistant'
-                              ? 'Jarvis replied'
-                              : 'Awaiting reply'
-                          }
                         />
                       )}
-                      {conv._count && conv._count.messages > 0 && (
-                        <span className="text-xs text-gray-600">
-                          {conv._count.messages} msg{conv._count.messages !== 1 ? 's' : ''}
-                        </span>
-                      )}
+                      <span className="text-xs text-gray-600">
+                        {timeAgo(chat.updatedAt)}
+                      </span>
                     </div>
                   </div>
 
-                  {conv.lastMessage ? (
+                  {chat.lastMessage ? (
                     <p className="text-xs text-gray-500 leading-relaxed line-clamp-2">
-                      {conv.lastMessage.content.length > 60
-                        ? conv.lastMessage.content.slice(0, 60) + '…'
-                        : conv.lastMessage.content}
+                      {chat.lastMessage.content.length > 80
+                        ? chat.lastMessage.content.slice(0, 80) + '…'
+                        : chat.lastMessage.content}
                     </p>
                   ) : (
                     <p className="text-xs text-gray-700 italic">No messages yet</p>
