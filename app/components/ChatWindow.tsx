@@ -25,6 +25,13 @@ function formatContent(content: string) {
   return content
 }
 
+interface ModelOption {
+  id: string
+  label: string
+  provider: string
+  description: string
+}
+
 export default function ChatWindow({ project, onDeleteProject }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -32,9 +39,22 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
   const [streaming, setStreaming] = useState(false)
   const [streamingContent, setStreamingContent] = useState('')
   const [showMenu, setShowMenu] = useState(false)
+  const [showModelPicker, setShowModelPicker] = useState(false)
+  const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4-6')
+  const [availableModels, setAvailableModels] = useState<ModelOption[]>([
+    { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet', provider: 'Anthropic', description: 'Fast & smart' },
+  ])
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+
+  // Load available models
+  useEffect(() => {
+    fetch('/api/chat')
+      .then(r => r.json())
+      .then(d => { if (d.models) setAvailableModels(d.models) })
+      .catch(() => {})
+  }, [])
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -82,7 +102,7 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId: project.id, message: text }),
+        body: JSON.stringify({ projectId: project.id, message: text, model: selectedModel }),
         signal: abortRef.current.signal,
       })
 
@@ -191,23 +211,59 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
           </div>
         </div>
 
-        <div className="relative">
-          <button
-            onClick={() => setShowMenu(!showMenu)}
-            className="text-gray-500 hover:text-gray-300 p-2 rounded-lg hover:bg-[#242424] transition-colors"
-          >
-            ⋮
-          </button>
-          {showMenu && (
-            <div className="absolute right-0 top-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-xl w-40 py-1 z-10">
-              <button
-                onClick={handleDelete}
-                className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#242424] transition-colors"
-              >
-                Delete Project
-              </button>
-            </div>
-          )}
+        <div className="flex items-center gap-2">
+          {/* Model picker */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowModelPicker(!showModelPicker); setShowMenu(false) }}
+              className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-300 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-2.5 py-1.5 hover:border-[#3a3a3a] transition-colors"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88]" />
+              {availableModels.find(m => m.id === selectedModel)?.label ?? 'Claude'}
+              <span className="text-gray-600">▾</span>
+            </button>
+            {showModelPicker && (
+              <div className="absolute right-0 top-9 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl shadow-xl w-56 py-1.5 z-20">
+                <div className="px-3 py-1.5 text-[10px] text-gray-600 uppercase tracking-wider">Model</div>
+                {availableModels.map(m => (
+                  <button
+                    key={m.id}
+                    onClick={() => { setSelectedModel(m.id); setShowModelPicker(false) }}
+                    className={`w-full text-left px-3 py-2.5 hover:bg-[#242424] transition-colors ${m.id === selectedModel ? 'bg-[#242424]' : ''}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {m.id === selectedModel && <span className="text-[#00ff88] text-xs">✓</span>}
+                      {m.id !== selectedModel && <span className="w-3" />}
+                      <div>
+                        <div className="text-sm text-gray-200">{m.label}</div>
+                        <div className="text-[10px] text-gray-600">{m.provider} · {m.description}</div>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Menu */}
+          <div className="relative">
+            <button
+              onClick={() => { setShowMenu(!showMenu); setShowModelPicker(false) }}
+              className="text-gray-500 hover:text-gray-300 p-2 rounded-lg hover:bg-[#242424] transition-colors"
+            >
+              ⋮
+            </button>
+            {showMenu && (
+              <div className="absolute right-0 top-10 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg shadow-xl w-40 py-1 z-10">
+                <button
+                  onClick={handleDelete}
+                  className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-[#242424] transition-colors"
+                >
+                  Delete Project
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
