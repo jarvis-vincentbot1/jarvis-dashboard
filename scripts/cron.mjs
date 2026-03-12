@@ -1,28 +1,6 @@
-// Price scrape cron — run every 30 minutes
-// Started by scripts/start.sh before the Next.js server
+// Price scrape cron — DISABLED on VPS
+// Scraping is handled by the Mac mini Playwright scraper (scraper/scrape.mjs)
+// which posts prices directly to /api/prices/scrape every 30 min via launchd.
+// The VPS-side fetch-scraper returned 0 results on all sites due to bot protection.
 
-const SCRAPE_INTERVAL_MS = 30 * 60 * 1000
-
-async function triggerScrape() {
-  try {
-    const res = await fetch('http://127.0.0.1:3000/api/prices/scrape', {
-      method: 'POST',
-      headers: { 'X-Cron-Secret': process.env.CRON_SECRET ?? 'jarvis-cron' },
-    })
-    if (res.ok) {
-      console.log(`[Cron] Price scrape triggered at ${new Date().toISOString()}`)
-    } else {
-      console.error(`[Cron] Scrape returned ${res.status}`)
-    }
-  } catch (e) {
-    console.error('[Cron] Scrape failed:', e)
-  }
-}
-
-// Initial scrape 60 seconds after start (let Next.js boot first)
-setTimeout(triggerScrape, 60_000)
-
-// Then every 30 minutes
-setInterval(triggerScrape, SCRAPE_INTERVAL_MS)
-
-console.log('[Cron] Price scrape cron started. First run in 60s, then every 30m.')
+console.log('[Cron] VPS internal scraper disabled. Mac mini handles price scraping.')
