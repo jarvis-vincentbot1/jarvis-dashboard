@@ -1,6 +1,6 @@
 'use client'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'todo'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'todo' | 'prices'
 
 interface Props {
   activeNav: NavItem
@@ -54,6 +54,25 @@ function TodoIcon({ active }: { active: boolean }) {
   )
 }
 
+function MonitorIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <line x1="8" y1="21" x2="16" y2="21" />
+      <line x1="12" y1="17" x2="12" y2="21" />
+    </svg>
+  )
+}
+
+function TagIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  )
+}
+
 function SignOutIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
@@ -68,7 +87,9 @@ const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean 
   { id: 'dashboard', label: 'Dashboard', Icon: GridIcon },
   { id: 'chat', label: 'Chat', Icon: ChatIcon },
   { id: 'calculator', label: 'Calculator', Icon: CalcIcon },
+  { id: 'monitoring', label: 'Monitoring', Icon: MonitorIcon },
   { id: 'todo', label: 'To-Do', Icon: TodoIcon },
+  { id: 'prices', label: 'Prices', Icon: TagIcon },
 ]
 
 export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {

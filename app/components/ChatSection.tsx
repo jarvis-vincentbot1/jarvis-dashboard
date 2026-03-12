@@ -44,9 +44,7 @@ export default function ChatSection({
 }: Props) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const [hoveredChatId, setHoveredChatId] = useState<string | null>(null)
-  const [mobileView, setMobileView] = useState<'list' | 'chat'>(
-    activeChatId ? 'chat' : 'list'
-  )
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const [showNewProject, setShowNewProject] = useState(false)
   const [creatingChatFor, setCreatingChatFor] = useState<string | null>(null) // projectId or 'standalone'
 
@@ -257,15 +255,16 @@ export default function ChatSection({
 
       {/* Right panel — chat window */}
       <div
-        className={`flex-1 min-w-0 h-full flex-col ${
+        className={`flex-1 min-w-0 flex-col overflow-hidden ${
           mobileView === 'chat' ? 'flex' : 'hidden md:flex'
         }`}
+        style={{ height: '100%' }}
       >
         {/* Mobile back button */}
-        <div className="md:hidden flex items-center px-4 h-12 border-b border-[#2a2a2a] flex-shrink-0 bg-[#0f0f0f]">
+        <div className="md:hidden flex items-center px-4 h-11 border-b border-[#2a2a2a] flex-shrink-0 bg-[#0f0f0f]">
           <button
             onClick={() => setMobileView('list')}
-            className="flex items-center gap-2 text-gray-400 text-sm hover:text-gray-200 transition-colors"
+            className="flex items-center gap-2 text-gray-400 text-sm active:text-gray-200 transition-colors"
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M19 12H5M12 5l-7 7 7 7" />
@@ -274,6 +273,7 @@ export default function ChatSection({
           </button>
         </div>
 
+        <div className="flex-1 min-h-0 overflow-hidden">
         {activeChat ? (
           <ChatWindow
             key={activeChat.id}
@@ -299,6 +299,7 @@ export default function ChatSection({
             </button>
           </div>
         )}
+        </div>
       </div>
 
       {showNewProject && (
