@@ -129,21 +129,21 @@ export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
         </div>
       </aside>
 
-      {/* Mobile bottom tab bar */}
+      {/* Mobile bottom tab bar — max 5 items */}
       <div
         className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around border-t border-[#2a2a2a] bg-[#1a1a1a] z-30"
         style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
       >
-        {NAV_ITEMS.map(({ id, label, Icon }) => (
+        {NAV_ITEMS.slice(0, 5).map(({ id, label, Icon }) => (
           <button
             key={id}
             onClick={() => onNavChange(id)}
-            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-[10px] font-medium transition-colors active:opacity-70 ${
               activeNav === id ? 'text-[#00ff88]' : 'text-gray-600'
             }`}
           >
             <Icon active={activeNav === id} />
-            {label}
+            <span className="truncate w-full text-center px-0.5">{label}</span>
           </button>
         ))}
       </div>

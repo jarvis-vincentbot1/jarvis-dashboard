@@ -5,7 +5,7 @@ const SCRAPE_INTERVAL_MS = 30 * 60 * 1000
 
 async function triggerScrape() {
   try {
-    const res = await fetch('http://localhost:3000/api/prices/scrape', {
+    const res = await fetch('http://127.0.0.1:3000/api/prices/scrape', {
       method: 'POST',
       headers: { 'X-Cron-Secret': process.env.CRON_SECRET ?? 'jarvis-cron' },
     })
