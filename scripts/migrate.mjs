@@ -1,15 +1,9 @@
 #!/usr/bin/env node
 /**
- * Run database migrations using raw SQL.
- * Called at container startup before the app starts.
+ * Run database migrations idempotently at container startup.
  */
 
 import pg from 'pg'
-import { readFileSync } from 'fs'
-import { join, dirname } from 'path'
-import { fileURLToPath } from 'url'
-
-const __dirname = dirname(fileURLToPath(import.meta.url))
 
 const client = new pg.Client({
   connectionString: process.env.DATABASE_URL,
@@ -18,12 +12,47 @@ const client = new pg.Client({
 async function migrate() {
   await client.connect()
 
-  const sql = readFileSync(
-    join(__dirname, '../prisma/migrations/20240101_init/migration.sql'),
-    'utf8'
-  )
+  // Idempotent schema — safe to run on every startup
+  await client.query(`
+    CREATE TABLE IF NOT EXISTS "Project" (
+      "id"          TEXT NOT NULL,
+      "name"        TEXT NOT NULL,
+      "description" TEXT,
+      "color"       TEXT NOT NULL DEFAULT '#00ff88',
+      "createdAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt"   TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Project_pkey" PRIMARY KEY ("id")
+    );
 
-  await client.query(sql)
+    CREATE TABLE IF NOT EXISTS "Message" (
+      "id"        TEXT NOT NULL,
+      "projectId" TEXT NOT NULL,
+      "role"      TEXT NOT NULL,
+      "content"   TEXT NOT NULL,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Message_pkey" PRIMARY KEY ("id")
+    );
+
+    -- Add FK only if it doesn't exist
+    DO $$
+    BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'Message_projectId_fkey'
+          AND table_name = 'Message'
+      ) THEN
+        ALTER TABLE "Message"
+          ADD CONSTRAINT "Message_projectId_fkey"
+          FOREIGN KEY ("projectId")
+          REFERENCES "Project"("id")
+          ON DELETE CASCADE ON UPDATE CASCADE;
+      END IF;
+    END $$;
+
+    -- Index if not exists
+    CREATE INDEX IF NOT EXISTS "Message_projectId_idx" ON "Message"("projectId");
+  `)
+
   console.log('✅ Migrations applied')
   await client.end()
 }
