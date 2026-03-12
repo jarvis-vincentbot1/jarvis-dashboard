@@ -1,125 +1,131 @@
 'use client'
 
-interface Project {
-  id: string
-  name: string
-  description: string | null
-  color: string
-  _count?: { messages: number }
-}
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'todo'
 
 interface Props {
-  projects: Project[]
-  activeProjectId: string | null
-  onSelectProject: (id: string) => void
-  onNewProject: () => void
+  activeNav: NavItem
+  onNavChange: (nav: NavItem) => void
   onLogout: () => void
-  isOpen: boolean
-  onClose: () => void
 }
 
-export default function Sidebar({
-  projects,
-  activeProjectId,
-  onSelectProject,
-  onNewProject,
-  onLogout,
-  isOpen,
-  onClose,
-}: Props) {
+function GridIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+    </svg>
+  )
+}
+
+function ChatIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+    </svg>
+  )
+}
+
+function CalcIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+      <rect x="4" y="2" width="16" height="20" rx="2" />
+      <line x1="8" y1="7" x2="16" y2="7" />
+      <circle cx="8" cy="11" r="0.5" fill="currentColor" />
+      <circle cx="12" cy="11" r="0.5" fill="currentColor" />
+      <circle cx="16" cy="11" r="0.5" fill="currentColor" />
+      <circle cx="8" cy="15" r="0.5" fill="currentColor" />
+      <circle cx="12" cy="15" r="0.5" fill="currentColor" />
+      <circle cx="16" cy="15" r="0.5" fill="currentColor" />
+      <circle cx="8" cy="19" r="0.5" fill="currentColor" />
+      <circle cx="12" cy="19" r="0.5" fill="currentColor" />
+      <circle cx="16" cy="19" r="0.5" fill="currentColor" />
+    </svg>
+  )
+}
+
+function TodoIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5}>
+      <path d="M9 11l3 3L22 4" />
+      <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+    </svg>
+  )
+}
+
+function SignOutIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <polyline points="16 17 21 12 16 7" />
+      <line x1="21" y1="12" x2="9" y2="12" />
+    </svg>
+  )
+}
+
+const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean }> }[] = [
+  { id: 'dashboard', label: 'Dashboard', Icon: GridIcon },
+  { id: 'chat', label: 'Chat', Icon: ChatIcon },
+  { id: 'calculator', label: 'Calculator', Icon: CalcIcon },
+  { id: 'todo', label: 'To-Do', Icon: TodoIcon },
+]
+
+export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
   return (
     <>
-      {/* Mobile overlay */}
-      {isOpen && (
-        <div
-          className="fixed inset-0 bg-black/50 z-20 md:hidden"
-          onClick={onClose}
-        />
-      )}
-
-      {/* Sidebar */}
-      <aside
-        className={`
-          fixed md:relative top-0 left-0 h-full z-30
-          w-64 bg-[#1a1a1a] border-r border-[#2a2a2a]
-          flex flex-col
-          transition-transform duration-200 ease-in-out
-          ${isOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0'}
-        `}
-      >
-        {/* Logo */}
-        <div className="flex items-center justify-between px-5 h-14 border-b border-[#2a2a2a] flex-shrink-0">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex flex-col w-[220px] bg-[#1a1a1a] border-r border-[#2a2a2a] h-full flex-shrink-0">
+        <div className="px-5 h-14 flex items-center border-b border-[#2a2a2a] flex-shrink-0">
           <span className="text-[#00ff88] font-bold text-xl tracking-wider">JARVIS</span>
-          <button
-            onClick={onClose}
-            className="md:hidden text-gray-500 hover:text-gray-300 p-1"
-          >
-            ✕
-          </button>
         </div>
 
-        {/* Projects list */}
-        <div className="flex-1 overflow-y-auto py-3 px-2">
-          <div className="text-xs text-gray-600 uppercase tracking-widest px-3 mb-2">Projects</div>
+        <nav className="flex-1 py-3 px-2 space-y-0.5">
+          {NAV_ITEMS.map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              onClick={() => onNavChange(id)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                activeNav === id
+                  ? 'text-[#00ff88] bg-[#00ff88]/10'
+                  : 'text-gray-500 hover:text-gray-300 hover:bg-[#1f1f1f]'
+              }`}
+            >
+              <Icon active={activeNav === id} />
+              {label}
+            </button>
+          ))}
+        </nav>
 
-          {projects.length === 0 ? (
-            <div className="px-3 py-4 text-sm text-gray-600 text-center">
-              No projects yet.
-              <br />Create one to get started.
-            </div>
-          ) : (
-            <ul className="space-y-0.5">
-              {projects.map((project) => (
-                <li key={project.id}>
-                  <button
-                    onClick={() => {
-                      onSelectProject(project.id)
-                      onClose()
-                    }}
-                    className={`
-                      w-full text-left px-3 py-2.5 rounded-lg transition-colors
-                      flex items-center gap-2.5 group
-                      ${activeProjectId === project.id
-                        ? 'bg-[#242424] text-gray-100'
-                        : 'text-gray-400 hover:bg-[#1f1f1f] hover:text-gray-200'
-                      }
-                    `}
-                  >
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: project.color }}
-                    />
-                    <span className="truncate text-sm font-medium">{project.name}</span>
-                    {project._count && project._count.messages > 0 && (
-                      <span className="ml-auto text-xs text-gray-600 group-hover:text-gray-500">
-                        {project._count.messages}
-                      </span>
-                    )}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {/* New Project + Logout */}
-        <div className="px-2 py-3 border-t border-[#2a2a2a] space-y-1 flex-shrink-0">
-          <button
-            onClick={onNewProject}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-[#00ff88] hover:bg-[#00ff8815] transition-colors"
-          >
-            <span className="text-lg leading-none">+</span>
-            <span>New Project</span>
-          </button>
+        <div className="px-2 py-3 border-t border-[#2a2a2a] flex-shrink-0">
           <button
             onClick={onLogout}
-            className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:text-gray-400 hover:bg-[#1f1f1f] transition-colors"
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:text-gray-400 hover:bg-[#1f1f1f] transition-colors"
           >
-            <span>↩</span>
-            <span>Sign out</span>
+            <SignOutIcon />
+            Sign out
           </button>
         </div>
       </aside>
+
+      {/* Mobile bottom tab bar */}
+      <div
+        className="md:hidden fixed bottom-0 left-0 right-0 flex items-center justify-around border-t border-[#2a2a2a] bg-[#1a1a1a] z-30"
+        style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
+      >
+        {NAV_ITEMS.map(({ id, label, Icon }) => (
+          <button
+            key={id}
+            onClick={() => onNavChange(id)}
+            className={`flex-1 flex flex-col items-center gap-0.5 py-2.5 text-xs font-medium transition-colors ${
+              activeNav === id ? 'text-[#00ff88]' : 'text-gray-600'
+            }`}
+          >
+            <Icon active={activeNav === id} />
+            {label}
+          </button>
+        ))}
+      </div>
     </>
   )
 }
