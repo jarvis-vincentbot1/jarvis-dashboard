@@ -26,3 +26,13 @@ model Message {
 
   @@index([projectId])
 }
+
+model Todo {
+  id        String    @id @default(cuid())
+  text      String
+  done      Boolean   @default(false)
+  projectId String?
+  dueDate   DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}

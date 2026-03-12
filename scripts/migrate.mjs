@@ -51,6 +51,20 @@ async function migrate() {
 
     -- Index if not exists
     CREATE INDEX IF NOT EXISTS "Message_projectId_idx" ON "Message"("projectId");
+
+    CREATE TABLE IF NOT EXISTS "Todo" (
+      "id"        TEXT NOT NULL,
+      "text"      TEXT NOT NULL,
+      "done"      BOOLEAN NOT NULL DEFAULT false,
+      "projectId" TEXT,
+      "dueDate"   TIMESTAMP(3),
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      CONSTRAINT "Todo_pkey" PRIMARY KEY ("id")
+    );
+
+    CREATE INDEX IF NOT EXISTS "Todo_projectId_idx" ON "Todo"("projectId");
+    CREATE INDEX IF NOT EXISTS "Todo_done_idx" ON "Todo"("done");
   `)
 
   console.log('✅ Migrations applied')

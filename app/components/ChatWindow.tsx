@@ -106,9 +106,27 @@ export default function ChatWindow({ project, onDeleteProject }: Props) {
         signal: abortRef.current.signal,
       })
 
-      if (!res.ok || !res.body) {
+      if (!res.ok) {
         throw new Error('Failed to get response')
       }
+
+      // Handle quick-reply JSON responses (e.g. todo commands)
+      const contentType = res.headers.get('content-type') || ''
+      if (contentType.includes('application/json')) {
+        const json = await res.json()
+        if (json.quickReply) {
+          const assistantMsg: Message = {
+            id: `quick-${Date.now()}`,
+            role: 'assistant',
+            content: json.quickReply,
+            createdAt: new Date().toISOString(),
+          }
+          setMessages((prev) => [...prev, assistantMsg])
+        }
+        return
+      }
+
+      if (!res.body) throw new Error('No response body')
 
       const reader = res.body.getReader()
       const decoder = new TextDecoder()

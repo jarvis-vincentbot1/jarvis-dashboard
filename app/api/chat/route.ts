@@ -43,6 +43,41 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'projectId and message are required' }, { status: 400 })
   }
 
+  const trimmed = message.trim()
+
+  // --- Todo command shortcuts (handled before AI) ---
+  const addMatch = trimmed.match(/^(?:add (?:to-?do|reminder|task)|reminder):\s*(.+)/i)
+  if (addMatch) {
+    const text = addMatch[1].trim()
+    await prisma.todo.create({ data: { text, projectId } })
+    const quickReply = `Added: ${text} ✅`
+    return Response.json({ quickReply })
+  }
+
+  if (/^(?:list to-?dos?|what are my to-?dos?|show to-?dos?)\??$/i.test(trimmed)) {
+    const todos = await prisma.todo.findMany({
+      where: { projectId, done: false },
+      orderBy: { createdAt: 'desc' },
+    })
+    const quickReply = todos.length === 0
+      ? 'No open to-dos.'
+      : `**Open to-dos:**\n${todos.map((t, i) => `${i + 1}. ${t.text}`).join('\n')}`
+    return Response.json({ quickReply })
+  }
+
+  const doneMatch = trimmed.match(/^(?:done|complete|mark done|finish):\s*(.+)/i)
+  if (doneMatch) {
+    const search = doneMatch[1].trim().toLowerCase()
+    const todos = await prisma.todo.findMany({ where: { projectId, done: false } })
+    const match = todos.find((t) => t.text.toLowerCase().includes(search))
+    if (match) {
+      await prisma.todo.update({ where: { id: match.id }, data: { done: true } })
+      return Response.json({ quickReply: `Done: ${match.text} ✅` })
+    }
+    return Response.json({ quickReply: `No matching to-do found for "${doneMatch[1]}"` })
+  }
+  // --- End todo shortcuts ---
+
   // Verify project exists
   const project = await prisma.project.findUnique({ where: { id: projectId } })
   if (!project) {

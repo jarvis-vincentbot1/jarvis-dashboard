@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 import Sidebar from './components/Sidebar'
 import ChatWindow from './components/ChatWindow'
 import NewProjectModal from './components/NewProjectModal'
+import TodoPanel from './components/TodoPanel'
+import VatCalculator from './components/VatCalculator'
 
 interface Project {
   id: string
@@ -14,12 +16,21 @@ interface Project {
   _count?: { messages: number }
 }
 
+type Tab = 'chat' | 'todo' | 'calculator'
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'chat', label: 'Chat' },
+  { id: 'todo', label: 'To-Do' },
+  { id: 'calculator', label: 'Calculator' },
+]
+
 export default function DashboardPage() {
   const [projects, setProjects] = useState<Project[]>([])
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null)
   const [showNewProject, setShowNewProject] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [loadingProjects, setLoadingProjects] = useState(true)
+  const [activeTab, setActiveTab] = useState<Tab>('chat')
   const router = useRouter()
 
   useEffect(() => {
@@ -70,7 +81,7 @@ export default function DashboardPage() {
       <Sidebar
         projects={projects}
         activeProjectId={activeProjectId}
-        onSelectProject={setActiveProjectId}
+        onSelectProject={(id) => { setActiveProjectId(id); setActiveTab('chat') }}
         onNewProject={() => setShowNewProject(true)}
         onLogout={handleLogout}
         isOpen={sidebarOpen}
@@ -104,33 +115,71 @@ export default function DashboardPage() {
           </button>
         </div>
 
+        {/* Desktop tab bar */}
+        <div className="hidden md:flex items-center gap-1 px-4 pt-3 pb-0 flex-shrink-0">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-[#00ff88] bg-[#00ff88]/10'
+                  : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Content area */}
         <div className="flex-1 overflow-hidden">
           {loadingProjects ? (
             <div className="flex items-center justify-center h-full">
               <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
             </div>
-          ) : activeProject ? (
-            <ChatWindow
-              key={activeProject.id}
-              project={activeProject}
-              onDeleteProject={handleDeleteProject}
-            />
+          ) : activeTab === 'chat' ? (
+            activeProject ? (
+              <ChatWindow
+                key={activeProject.id}
+                project={activeProject}
+                onDeleteProject={handleDeleteProject}
+              />
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center px-6">
+                <div className="text-4xl font-bold text-[#00ff88] tracking-wider mb-3">JARVIS</div>
+                <p className="text-gray-500 text-sm mb-2">Your personal command center</p>
+                <p className="text-gray-700 text-xs mb-6">
+                  {projects.length > 0 ? 'Select a project from the sidebar' : 'Create a project to get started'}
+                </p>
+                <button
+                  onClick={() => setShowNewProject(true)}
+                  className="px-5 py-2.5 bg-[#00ff88] text-black font-semibold rounded-lg hover:bg-[#00dd77] transition-colors text-sm"
+                >
+                  + New Project
+                </button>
+              </div>
+            )
+          ) : activeTab === 'todo' ? (
+            <TodoPanel projectId={activeProjectId || undefined} />
           ) : (
-            <div className="flex flex-col items-center justify-center h-full text-center px-6">
-              <div className="text-4xl font-bold text-[#00ff88] tracking-wider mb-3">JARVIS</div>
-              <p className="text-gray-500 text-sm mb-2">Your personal command center</p>
-              <p className="text-gray-700 text-xs mb-6">
-                {projects.length > 0 ? 'Select a project from the sidebar' : 'Create a project to get started'}
-              </p>
-              <button
-                onClick={() => setShowNewProject(true)}
-                className="px-5 py-2.5 bg-[#00ff88] text-black font-semibold rounded-lg hover:bg-[#00dd77] transition-colors text-sm"
-              >
-                + New Project
-              </button>
-            </div>
+            <VatCalculator />
           )}
+        </div>
+
+        {/* Mobile bottom tab bar */}
+        <div className="md:hidden flex items-center justify-around border-t border-[#2a2a2a] bg-[#0f0f0f] flex-shrink-0 pb-safe">
+          {TABS.map((tab) => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 py-3 text-xs font-medium transition-colors ${
+                activeTab === tab.id ? 'text-[#00ff88]' : 'text-gray-600'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
       </main>
 
