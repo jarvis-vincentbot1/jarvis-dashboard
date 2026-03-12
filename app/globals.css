@@ -1,0 +1,139 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --accent: #00ff88;
+  --bg: #0f0f0f;
+  --sidebar: #1a1a1a;
+  --surface: #242424;
+  --border: #2a2a2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #333;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #444;
+}
+
+/* Smooth scrolling in chat */
+.chat-scroll {
+  scroll-behavior: smooth;
+}
+
+/* Message animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.message-animate {
+  animation: fadeInUp 0.2s ease-out;
+}
+
+/* Blinking cursor for streaming */
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
+
+.cursor-blink::after {
+  content: '▋';
+  animation: blink 0.7s infinite;
+  color: var(--accent);
+  font-size: 0.9em;
+}
+
+/* Prose styling for AI responses */
+.prose-jarvis {
+  line-height: 1.6;
+}
+
+.prose-jarvis p {
+  margin-bottom: 0.75rem;
+}
+
+.prose-jarvis p:last-child {
+  margin-bottom: 0;
+}
+
+.prose-jarvis ul, .prose-jarvis ol {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+}
+
+.prose-jarvis li {
+  margin-bottom: 0.25rem;
+}
+
+.prose-jarvis code {
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 4px;
+  padding: 0.1rem 0.35rem;
+  font-size: 0.875em;
+  font-family: 'Menlo', 'Monaco', monospace;
+  color: #00ff88;
+}
+
+.prose-jarvis pre {
+  background: #111;
+  border: 1px solid #2a2a2a;
+  border-radius: 8px;
+  padding: 1rem;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+}
+
+.prose-jarvis pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #e2e8f0;
+  font-size: 0.85em;
+}
+
+.prose-jarvis h1, .prose-jarvis h2, .prose-jarvis h3 {
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+  color: #f1f5f9;
+}
+
+.prose-jarvis strong {
+  font-weight: 600;
+  color: #f1f5f9;
+}
+
+.prose-jarvis blockquote {
+  border-left: 3px solid #00ff88;
+  padding-left: 1rem;
+  color: #94a3b8;
+  margin: 0.75rem 0;
+}
