@@ -18,25 +18,13 @@ export async function GET() {
     },
   })
 
-  // For each product, get the latest entry per retailer
-  const result = products.map((product) => {
-    const latestByRetailer = new Map<string, typeof product.prices[number]>()
-    for (const entry of product.prices) {
-      const key = `${entry.retailer}::${entry.country}`
-      if (!latestByRetailer.has(key)) {
-        latestByRetailer.set(key, entry)
-      }
-    }
-
-    const entries = Array.from(latestByRetailer.values()).sort((a, b) => a.price - b.price)
-
-    return {
-      id: product.id,
-      name: product.name,
-      category: product.category,
-      entries,
-    }
-  })
+  // Return all entries sorted by price (ascending) — don't deduplicate, show every listing
+  const result = products.map((product) => ({
+    id: product.id,
+    name: product.name,
+    category: product.category,
+    entries: [...product.prices].sort((a, b) => a.price - b.price),
+  }))
 
   return NextResponse.json({ products: result })
 }
