@@ -48,12 +48,9 @@ export async function POST(req: NextRequest) {
       update: {},
     })
 
-    // Clear old entries (>2h)
+    // Clear all existing entries before saving fresh data
     await prisma.priceEntry.deleteMany({
-      where: {
-        productId: PRODUCT_ID,
-        scrapedAt: { lt: new Date(Date.now() - 2 * 60 * 60 * 1000) }
-      }
+      where: { productId: PRODUCT_ID }
     })
 
     // Save new entries

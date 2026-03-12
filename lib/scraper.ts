@@ -230,12 +230,9 @@ export async function scrapeRTX5090Prices() {
 
   let saved = 0
 
-  // Delete entries older than 2 hours to keep data fresh
+  // Clear all entries before saving fresh data
   await prisma.priceEntry.deleteMany({
-    where: {
-      productId: product.id,
-      scrapedAt: { lt: new Date(Date.now() - 2 * 60 * 60 * 1000) }
-    }
+    where: { productId: product.id }
   })
 
   // Run scrapers sequentially (be polite, avoid simultaneous requests)
