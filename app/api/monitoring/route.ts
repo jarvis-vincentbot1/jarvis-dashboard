@@ -30,27 +30,24 @@ async function fetchHostMetrics(host: { name: string; base: string }) {
     const [cpuData, ramData, diskData, info] = await Promise.all([
       fetchNetdata(host.base, '/data?chart=system.cpu&points=1&after=-1'),
       fetchNetdata(host.base, '/data?chart=system.ram&points=1&after=-1'),
-      fetchNetdata(host.base, '/data?chart=disk_space._&points=1&after=-1'),
+      fetchNetdata(host.base, '/data?chart=disk_space./&points=1&after=-1'),
       fetchNetdata(host.base, '/info'),
     ])
 
-    // CPU: system.cpu dimensions are user,system,... summing all non-idle
-    const cpuRaw = cpuData as { data?: number[][]; dimension_names?: string[] }
+    // CPU: Netdata v2 reports usage directly (no idle dimension) — sum all values
+    const cpuRaw = cpuData as { data?: number[][], labels?: string[] }
     let cpu = 0
-    if (cpuRaw?.data?.[0] && cpuRaw?.dimension_names) {
-      const idleIdx = cpuRaw.dimension_names.indexOf('idle')
+    if (cpuRaw?.data?.[0]) {
       const vals = cpuRaw.data[0].slice(1) // skip timestamp
-      const total = vals.reduce((a, b) => a + Math.abs(b), 0)
-      const idle = idleIdx >= 0 ? Math.abs(vals[idleIdx]) : 0
-      cpu = total > 0 ? Math.round(((total - idle) / total) * 1000) / 10 : 0
+      cpu = Math.min(100, Math.round(vals.reduce((a, b) => a + Math.abs(b), 0) * 10) / 10)
     }
 
-    // RAM: dimensions are free,used,cached,buffers
-    const ramRaw = ramData as { data?: number[][]; dimension_names?: string[] }
+    // RAM: labels are free,used,cached,buffers (in MiB)
+    const ramRaw = ramData as { data?: number[][], labels?: string[] }
     let ramUsed = 0, ramTotal = 0
-    if (ramRaw?.data?.[0] && ramRaw?.dimension_names) {
+    if (ramRaw?.data?.[0] && ramRaw?.labels) {
       const vals = ramRaw.data[0].slice(1)
-      const dims = ramRaw.dimension_names
+      const dims = ramRaw.labels.slice(1) // skip 'time'
       const get = (name: string) => {
         const i = dims.indexOf(name)
         return i >= 0 ? Math.abs(vals[i]) : 0
@@ -65,12 +62,12 @@ async function fetchHostMetrics(host: { name: string; base: string }) {
     }
     const ramPercent = ramTotal > 0 ? Math.round((ramUsed / ramTotal) * 1000) / 10 : 0
 
-    // Disk: dimensions are avail,used,reserved
-    const diskRaw = diskData as { data?: number[][]; dimension_names?: string[] }
+    // Disk: labels are avail,used,reserved for root (in GiB)
+    const diskRaw = diskData as { data?: number[][], labels?: string[] }
     let diskUsed = 0, diskTotal = 0
-    if (diskRaw?.data?.[0] && diskRaw?.dimension_names) {
+    if (diskRaw?.data?.[0] && diskRaw?.labels) {
       const vals = diskRaw.data[0].slice(1)
-      const dims = diskRaw.dimension_names
+      const dims = diskRaw.labels.slice(1) // skip 'time'
       const get = (name: string) => {
         const i = dims.indexOf(name)
         return i >= 0 ? Math.abs(vals[i]) : 0
@@ -78,13 +75,13 @@ async function fetchHostMetrics(host: { name: string; base: string }) {
       // Values are in GiB
       const used = get('used')
       const avail = get('avail')
-      const reserved = get('reserved_for_root')
+      const reserved = get('reserved for root')
       diskTotal = Math.round((used + avail + reserved) * 10) / 10
       diskUsed = Math.round(used * 10) / 10
     }
     const diskPercent = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 1000) / 10 : 0
 
-    const infoRaw = info as { uptime?: number }
+    const infoRaw = info as { uptime?: number; mirrored_hosts?: Array<{hostname?: string}> }
     const uptime = formatUptime(infoRaw?.uptime ?? 0)
 
     return {
