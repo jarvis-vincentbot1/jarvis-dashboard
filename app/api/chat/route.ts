@@ -5,8 +5,8 @@ import { getSession } from '@/lib/session'
 const OPENCLAW_API_URL = process.env.OPENCLAW_API_URL || 'http://100.116.130.111:18789'
 const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || ''
 
-// Available models exposed to the UI
-export const AVAILABLE_MODELS = [
+// Available models exposed to the UI (not exported from route — fetched via GET)
+const AVAILABLE_MODELS = [
   {
     id: 'anthropic/claude-sonnet-4-6',
     label: 'Claude Sonnet',
