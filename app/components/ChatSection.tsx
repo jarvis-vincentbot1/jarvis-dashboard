@@ -32,6 +32,7 @@ interface Props {
   onChatCreated: (chat: Chat, projectId?: string) => void
   onChatDeleted: (id: string) => void
   onProjectCreated: (project: ProjectGroup) => void
+  onChatRenamed?: (id: string, name: string) => void
 }
 
 export default function ChatSection({
@@ -41,6 +42,7 @@ export default function ChatSection({
   onChatCreated,
   onChatDeleted,
   onProjectCreated,
+  onChatRenamed,
 }: Props) {
   const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set())
   const [hoveredChatId, setHoveredChatId] = useState<string | null>(null)
@@ -282,6 +284,7 @@ export default function ChatSection({
               onChatDeleted(id)
               setMobileView('list')
             }}
+            onTitleUpdate={onChatRenamed}
           />
         ) : (
           <div className="flex flex-col items-center justify-center h-full text-center px-6">

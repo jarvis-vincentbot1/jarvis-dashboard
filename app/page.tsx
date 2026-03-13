@@ -111,6 +111,18 @@ export default function DashboardPage() {
     }))
   }
 
+  function handleChatRenamed(chatId: string, name: string) {
+    setChatData((prev) => ({
+      standalone: prev.standalone.map((c) =>
+        c.id === chatId ? { ...c, name } : c
+      ),
+      projects: prev.projects.map((p) => ({
+        ...p,
+        chats: p.chats.map((c) => (c.id === chatId ? { ...c, name } : c)),
+      })),
+    }))
+  }
+
   function handleOpenChat(chatId: string) {
     setActiveChatId(chatId)
     setActiveNav('chat')
@@ -148,6 +160,7 @@ export default function DashboardPage() {
               onChatCreated={handleChatCreated}
               onChatDeleted={handleChatDeleted}
               onProjectCreated={handleProjectCreated}
+              onChatRenamed={handleChatRenamed}
             />
           ) : activeNav === 'calculator' ? (
             <VatCalculator />

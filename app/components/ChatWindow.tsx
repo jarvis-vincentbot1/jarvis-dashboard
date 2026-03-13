@@ -25,6 +25,7 @@ interface Chat {
 interface Props {
   chat: Chat
   onDeleteChat: (id: string) => void
+  onTitleUpdate?: (id: string, name: string) => void
 }
 
 interface ModelOption {
@@ -45,7 +46,7 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
-export default function ChatWindow({ chat, onDeleteChat }: Props) {
+export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -233,6 +234,14 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
             createdAt: new Date().toISOString(),
           }
           setMessages((prev) => [...prev, assistantMsg])
+
+          // Auto-title on first quick-reply exchange
+          if (chat.name === 'New chat' && onTitleUpdate) {
+            fetch(`/api/chats/${chat.id}/title`, { method: 'POST' })
+              .then((r) => r.ok ? r.json() : null)
+              .then((d) => { if (d?.name) onTitleUpdate(chat.id, d.name) })
+              .catch(() => {})
+          }
         }
         return
       }
@@ -268,6 +277,15 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
                   if (Array.isArray(data)) setMessages(data)
                 })
                 .catch(console.error)
+
+              // Auto-generate a title after the very first exchange
+              if (chat.name === 'New chat' && onTitleUpdate) {
+                fetch(`/api/chats/${chat.id}/title`, { method: 'POST' })
+                  .then((r) => r.ok ? r.json() : null)
+                  .then((d) => { if (d?.name) onTitleUpdate(chat.id, d.name) })
+                  .catch(() => {})
+              }
+
               break
             }
 
