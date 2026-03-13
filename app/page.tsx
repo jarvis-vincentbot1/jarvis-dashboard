@@ -130,7 +130,10 @@ export default function DashboardPage() {
         <div className="h-12 flex-shrink-0 md:hidden" />
 
         {/* Content area — chat needs overflow-hidden+flex (has internal scroll); others scroll freely */}
-        <div className={`flex-1 ${activeNav === 'chat' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
+        <div
+          className={`flex-1 ${activeNav === 'chat' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}
+          style={activeNav !== 'chat' ? { paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 0px))' } : undefined}
+        >
           {loading ? (
             <div className="flex items-center justify-center py-20">
               <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
