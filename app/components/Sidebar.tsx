@@ -1,5 +1,7 @@
 'use client'
 
+import { useState } from 'react'
+
 export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'todo' | 'prices'
 
 interface Props {
@@ -99,6 +101,13 @@ const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  function navigate(id: NavItem) {
+    onNavChange(id)
+    setMenuOpen(false)
+  }
+
   return (
     <>
       {/* ── Desktop sidebar ── */}
@@ -145,35 +154,84 @@ export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
       </aside>
 
       {/* ── Mobile top header ── */}
-      <div className="md:hidden fixed top-0 left-0 right-0 z-30 flex items-center justify-between px-4 h-12 bg-[#141414] border-b border-white/5">
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex items-center justify-between px-4 h-12 bg-[#141414] border-b border-white/5">
         <div className="flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-[#00ff88] shadow-[0_0_4px_#00ff88]" />
           <span className="text-white font-bold text-base tracking-[0.15em]">JARVIS</span>
         </div>
-        <span className="text-xs text-gray-500 capitalize">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</span>
+        <div className="flex items-center gap-3">
+          <span className="text-xs text-gray-500">{NAV_ITEMS.find(n => n.id === activeNav)?.label}</span>
+          {/* Hamburger button */}
+          <button
+            onClick={() => setMenuOpen(o => !o)}
+            className="w-8 h-8 flex flex-col items-center justify-center gap-1.5 text-gray-400 active:text-white"
+            aria-label="Open menu"
+          >
+            <span className={`block w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${menuOpen ? 'rotate-45 translate-y-2' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${menuOpen ? 'opacity-0' : ''}`} />
+            <span className={`block w-5 h-0.5 bg-current rounded-full transition-all duration-200 ${menuOpen ? '-rotate-45 -translate-y-2' : ''}`} />
+          </button>
+        </div>
       </div>
 
-      {/* ── Mobile bottom tab bar ── */}
+      {/* ── Mobile drawer overlay ── */}
+      {menuOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-30 bg-black/60 backdrop-blur-sm"
+          onClick={() => setMenuOpen(false)}
+        />
+      )}
+
+      {/* ── Mobile drawer panel ── */}
       <div
-        className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-[#141414] border-t border-white/5"
-        style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
+        className={`md:hidden fixed top-0 right-0 bottom-0 z-50 w-64 bg-[#141414] border-l border-white/5 flex flex-col transition-transform duration-250 ease-out ${
+          menuOpen ? 'translate-x-0' : 'translate-x-full'
+        }`}
       >
-        <div className="flex items-stretch">
-          {NAV_ITEMS.slice(0, 5).map(({ id, label, Icon }) => (
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-4 h-12 border-b border-white/5 flex-shrink-0">
+          <span className="text-white font-bold text-base tracking-[0.15em]">Menu</span>
+          <button
+            onClick={() => setMenuOpen(false)}
+            className="w-8 h-8 flex items-center justify-center text-gray-500 active:text-white"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <line x1="18" y1="6" x2="6" y2="18" />
+              <line x1="6" y1="6" x2="18" y2="18" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Drawer nav */}
+        <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+          {NAV_ITEMS.map(({ id, label, Icon }) => (
             <button
               key={id}
-              onClick={() => onNavChange(id)}
-              className={`flex-1 flex flex-col items-center justify-center gap-1 pt-2 pb-1.5 min-h-[52px] transition-all active:scale-95 ${
-                activeNav === id ? 'text-[#00ff88]' : 'text-gray-600 hover:text-gray-400'
+              onClick={() => navigate(id)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-150 active:scale-[0.98] ${
+                activeNav === id
+                  ? 'text-[#00ff88] bg-[#00ff88]/10'
+                  : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
               }`}
             >
-              {activeNav === id && (
-                <span className="absolute -top-px left-1/2 -translate-x-1/2 w-8 h-0.5 bg-[#00ff88] rounded-full" />
-              )}
               <Icon active={activeNav === id} />
-              <span className="text-[9px] font-semibold tracking-wide leading-none">{label}</span>
+              <span>{label}</span>
+              {activeNav === id && (
+                <span className="ml-auto w-1.5 h-1.5 rounded-full bg-[#00ff88]" />
+              )}
             </button>
           ))}
+        </nav>
+
+        {/* Drawer sign out */}
+        <div className="px-3 py-4 border-t border-white/5 flex-shrink-0" style={{ paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))' }}>
+          <button
+            onClick={() => { setMenuOpen(false); onLogout() }}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm text-gray-600 hover:text-gray-400 hover:bg-white/5 transition-colors"
+          >
+            <SignOutIcon />
+            Sign out
+          </button>
         </div>
       </div>
     </>
