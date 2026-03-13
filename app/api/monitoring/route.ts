@@ -136,6 +136,7 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
     const uptime = formatUptime(kv['system.uptime'] ?? 0)
 
     return {
+      hostid: host.hostid,
       name: host.name,
       icon: host.icon,
       online: hasData,
@@ -146,6 +147,7 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
     }
   } catch {
     return {
+      hostid: host.hostid,
       name: host.name,
       icon: host.icon,
       online: false,
