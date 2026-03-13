@@ -31,6 +31,56 @@ export async function GET() {
   return NextResponse.json({ models: AVAILABLE_MODELS })
 }
 
+// Runs in the background after POST returns — no streaming, saves full response to DB
+async function generateResponse(
+  assistantMessageId: string,
+  chatId: string,
+  aiMessages: Array<{ role: string; content: unknown }>,
+  model: string,
+) {
+  try {
+    const response = await fetch(`${OPENCLAW_API_URL}/v1/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${OPENCLAW_TOKEN}`,
+        'Content-Type': 'application/json',
+        'x-openclaw-agent-id': 'main',
+      },
+      body: JSON.stringify({
+        model,
+        stream: false,
+        messages: aiMessages,
+      }),
+    })
+
+    if (!response.ok) {
+      const err = await response.text()
+      throw new Error(`OpenClaw API error ${response.status}: ${err}`)
+    }
+
+    const data = await response.json()
+    const content = data.choices?.[0]?.message?.content || ''
+
+    await prisma.message.update({
+      where: { id: assistantMessageId },
+      data: { content, status: 'done' },
+    })
+    await prisma.chat.update({
+      where: { id: chatId },
+      data: { updatedAt: new Date() },
+    })
+  } catch (error) {
+    console.error('Background generation error:', error)
+    await prisma.message.update({
+      where: { id: assistantMessageId },
+      data: {
+        content: '⚠️ Failed to get response. Please try again.',
+        status: 'error',
+      },
+    }).catch(() => {})
+  }
+}
+
 export async function POST(request: Request) {
   const session = await requireAuth()
   if (!session) {
@@ -45,13 +95,12 @@ export async function POST(request: Request) {
 
   const trimmed = message.trim()
 
-  // --- Todo command shortcuts (handled before AI) ---
+  // --- Todo command shortcuts (synchronous quick replies, no DB messages) ---
   const addMatch = trimmed.match(/^(?:add (?:to-?do|reminder|task)|reminder):\s*(.+)/i)
   if (addMatch) {
     const text = addMatch[1].trim()
     await prisma.todo.create({ data: { text } })
-    const quickReply = `Added: ${text} ✅`
-    return Response.json({ quickReply })
+    return NextResponse.json({ quickReply: `Added: ${text} ✅` })
   }
 
   if (/^(?:list to-?dos?|what are my to-?dos?|show to-?dos?)\??$/i.test(trimmed)) {
@@ -62,7 +111,7 @@ export async function POST(request: Request) {
     const quickReply = todos.length === 0
       ? 'No open to-dos.'
       : `**Open to-dos:**\n${todos.map((t, i) => `${i + 1}. ${t.text}`).join('\n')}`
-    return Response.json({ quickReply })
+    return NextResponse.json({ quickReply })
   }
 
   const doneMatch = trimmed.match(/^(?:done|complete|mark done|finish):\s*(.+)/i)
@@ -72,9 +121,9 @@ export async function POST(request: Request) {
     const match = todos.find((t) => t.text.toLowerCase().includes(search))
     if (match) {
       await prisma.todo.update({ where: { id: match.id }, data: { done: true } })
-      return Response.json({ quickReply: `Done: ${match.text} ✅` })
+      return NextResponse.json({ quickReply: `Done: ${match.text} ✅` })
     }
-    return Response.json({ quickReply: `No matching to-do found for "${doneMatch[1]}"` })
+    return NextResponse.json({ quickReply: `No matching to-do found for "${doneMatch[1]}"` })
   }
   // --- End todo shortcuts ---
 
@@ -85,7 +134,7 @@ export async function POST(request: Request) {
   }
 
   // Save user message
-  await prisma.message.create({
+  const userMessage = await prisma.message.create({
     data: {
       chatId,
       role: 'user',
@@ -94,40 +143,44 @@ export async function POST(request: Request) {
     },
   })
 
-  // Load last 20 messages from this chat
+  // Create empty placeholder for the assistant response
+  const assistantMessage = await prisma.message.create({
+    data: {
+      chatId,
+      role: 'assistant',
+      content: '',
+      status: 'generating',
+    },
+  })
+
+  // Load history for AI context (exclude the generating placeholder)
   const history = await prisma.message.findMany({
-    where: { chatId },
+    where: { chatId, id: { not: assistantMessage.id } },
     orderBy: { createdAt: 'asc' },
     take: 20,
   })
 
-  const messages = history.map((msg) => ({
-    role: msg.role as 'user' | 'assistant',
-    content: msg.content,
-  }))
-
-  // Select model — default to Claude Sonnet
   const selectedModel = model || 'anthropic/claude-sonnet-4-6'
-
   const systemPrompt = `You are Jarvis, a personal AI assistant. Be concise, direct, and helpful.`
 
-  // Build the last user message with optional image/file attachments
+  // Build messages array for AI
   interface AttachmentMeta { name: string; type: string; size: number; url: string }
   type ContentPart =
     | { type: 'text'; text: string }
     | { type: 'image_url'; image_url: { url: string } }
 
-  const lastMsgContent: ContentPart[] = []
+  const baseMessages = history.slice(0, -1).map((msg) => ({
+    role: msg.role as 'user' | 'assistant',
+    content: msg.content,
+  }))
 
-  // Add image attachments as vision content
+  // Build the last user message with optional image/file attachments
+  const lastMsgContent: ContentPart[] = []
   if (attachments?.length) {
     const imageAttachments = (attachments as AttachmentMeta[]).filter(a => a.type.startsWith('image/'))
     const nonImages = (attachments as AttachmentMeta[]).filter(a => !a.type.startsWith('image/'))
 
     for (const img of imageAttachments) {
-      // Make URL absolute so Claude can fetch it
-      const absoluteUrl = img.url.startsWith('http') ? img.url : `${OPENCLAW_API_URL.replace(/\/v1.*/, '')}${img.url}`
-      // Use the jarvis domain for image URLs
       const imageUrl = img.url.startsWith('/') ? `https://jarvis.kuiler.nl${img.url}` : img.url
       lastMsgContent.push({ type: 'image_url', image_url: { url: imageUrl } })
     }
@@ -142,108 +195,20 @@ export async function POST(request: Request) {
 
   const lastUserMessage = lastMsgContent.length > 0
     ? { role: 'user' as const, content: lastMsgContent }
-    : messages[messages.length - 1]
+    : { role: 'user' as const, content: message.trim() }
 
-  // Stream via OpenClaw's OpenAI-compatible endpoint
-  const encoder = new TextEncoder()
-  const stream = new ReadableStream({
-    async start(controller) {
-      let fullContent = ''
+  const aiMessages = [
+    { role: 'system', content: systemPrompt },
+    ...baseMessages,
+    lastUserMessage,
+  ]
 
-      try {
-        const response = await fetch(`${OPENCLAW_API_URL}/v1/chat/completions`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${OPENCLAW_TOKEN}`,
-            'Content-Type': 'application/json',
-            'x-openclaw-agent-id': 'main',
-          },
-          body: JSON.stringify({
-            model: selectedModel,
-            stream: true,
-            messages: [
-              { role: 'system', content: systemPrompt },
-              ...messages.slice(0, -1),
-              lastUserMessage,
-            ],
-          }),
-        })
+  // Fire and forget — response persists even if client disconnects
+  void generateResponse(assistantMessage.id, chatId, aiMessages, selectedModel)
 
-        if (!response.ok) {
-          const err = await response.text()
-          throw new Error(`OpenClaw API error ${response.status}: ${err}`)
-        }
-
-        const reader = response.body!.getReader()
-        const dec = new TextDecoder()
-        let buf = ''
-
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-
-          buf += dec.decode(value, { stream: true })
-          const lines = buf.split('\n')
-          buf = lines.pop() || ''
-
-          for (const line of lines) {
-            if (!line.startsWith('data: ')) continue
-            const data = line.slice(6).trim()
-            if (data === '[DONE]') {
-              // Save full assistant response
-              await prisma.message.create({
-                data: { chatId, role: 'assistant', content: fullContent },
-              })
-              await prisma.chat.update({
-                where: { id: chatId },
-                data: { updatedAt: new Date() },
-              })
-              controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-              controller.close()
-              return
-            }
-            try {
-              const parsed = JSON.parse(data)
-              const delta = parsed.choices?.[0]?.delta?.content
-              if (delta) {
-                fullContent += delta
-                controller.enqueue(
-                  encoder.encode(`data: ${JSON.stringify({ text: delta })}\n\n`)
-                )
-              }
-            } catch {
-              // skip malformed chunks
-            }
-          }
-        }
-
-        // If stream ended without [DONE]
-        if (fullContent) {
-          await prisma.message.create({
-            data: { chatId, role: 'assistant', content: fullContent },
-          })
-          await prisma.chat.update({
-            where: { id: chatId },
-            data: { updatedAt: new Date() },
-          })
-        }
-        controller.enqueue(encoder.encode('data: [DONE]\n\n'))
-        controller.close()
-      } catch (error) {
-        console.error('OpenClaw stream error:', error)
-        controller.enqueue(
-          encoder.encode(`data: ${JSON.stringify({ error: 'AI error: ' + String(error) })}\n\n`)
-        )
-        controller.close()
-      }
-    },
-  })
-
-  return new Response(stream, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    },
+  return NextResponse.json({
+    userMessageId: userMessage.id,
+    assistantMessageId: assistantMessage.id,
+    status: 'generating',
   })
 }

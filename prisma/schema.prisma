@@ -34,6 +34,7 @@ model Message {
   role        String
   content     String
   attachments Json?
+  status      String   @default("done")
   createdAt   DateTime @default(now())
 
   @@index([chatId])
