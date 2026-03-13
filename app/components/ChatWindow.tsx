@@ -63,6 +63,9 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
 
+  const [showAttachMenu, setShowAttachMenu] = useState(false)
+  const [isDragging, setIsDragging] = useState(false)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
@@ -70,6 +73,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
+  const attachMenuRef = useRef<HTMLDivElement>(null)
 
   // Load available models
   useEffect(() => {
@@ -342,11 +346,43 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault()
+    setIsDragging(false)
     if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files)
   }
 
+  function handleDragEnter(e: React.DragEvent) {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault()
+    if (!e.currentTarget.contains(e.relatedTarget as Node)) {
+      setIsDragging(false)
+    }
+  }
+
+  // Close attach menu on outside click
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(e.target as Node)) {
+        setShowAttachMenu(false)
+      }
+    }
+    if (showAttachMenu) {
+      document.addEventListener('mousedown', handleClickOutside)
+      return () => document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [showAttachMenu])
+
   return (
-    <div className="flex flex-col h-full" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
+    <div
+      className="flex flex-col h-full"
+      onDrop={handleDrop}
+      onDragOver={(e) => e.preventDefault()}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+    >
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 md:px-6 h-14 border-b border-[#2a2a2a] flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -500,48 +536,72 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
       </div>
 
       {/* Input area */}
-      <div className="px-4 md:px-6 py-3 border-t border-[#2a2a2a] flex-shrink-0">
-        {uploadError && (
-          <div className="mb-2 text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-1.5">
-            {uploadError}
+      <div className="px-3 md:px-5 py-3 border-t border-[#2a2a2a] flex-shrink-0">
+
+        {/* Hidden file inputs */}
+        <input ref={imageInputRef} type="file" multiple accept="image/*" className="hidden"
+          onChange={(e) => { e.target.files && addFiles(e.target.files); e.target.value = '' }} />
+        <input ref={fileInputRef} type="file" multiple accept="video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md" className="hidden"
+          onChange={(e) => { e.target.files && addFiles(e.target.files); e.target.value = '' }} />
+
+        {/* Drag-over overlay */}
+        {isDragging && (
+          <div className="absolute inset-0 z-30 bg-[#00ff88]/5 border-2 border-dashed border-[#00ff88]/40 rounded-2xl flex items-center justify-center pointer-events-none">
+            <div className="flex flex-col items-center gap-2">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#00ff88" strokeWidth="1.5" opacity="0.6">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              <span className="text-[#00ff88]/60 text-sm font-medium">Drop files here</span>
+            </div>
           </div>
         )}
 
-        {/* Hidden file inputs */}
-        <input
-          ref={imageInputRef}
-          type="file"
-          multiple
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => e.target.files && addFiles(e.target.files)}
-        />
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept="video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md"
-          className="hidden"
-          onChange={(e) => e.target.files && addFiles(e.target.files)}
-        />
-
         {/* Unified input container */}
-        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl transition-colors focus-within:border-[#00ff88]/40">
+        <div className={`bg-[#1a1a1a] border rounded-2xl transition-all duration-150 ${
+          isDragging ? 'border-[#00ff88]/50 shadow-[0_0_0_3px_rgba(0,255,136,0.08)]' : 'border-[#2a2a2a] focus-within:border-[#3a3a3a]'
+        }`}>
 
-          {/* Pending file previews — inside the box */}
+          {/* Error */}
+          {uploadError && (
+            <div className="mx-3 mt-3 text-xs text-red-400 bg-red-400/8 border border-red-400/15 rounded-xl px-3 py-2 flex items-center gap-2">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="flex-shrink-0">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              {uploadError}
+            </div>
+          )}
+
+          {/* Pending file chips */}
           {pendingFiles.length > 0 && (
-            <div className="flex flex-wrap gap-2 px-4 pt-3">
+            <div className="flex flex-wrap gap-2 px-3 pt-3">
               {pendingFiles.map((pf, i) => (
                 <div key={i} className="relative group">
                   <PendingAttachmentPreview pf={pf} />
                   <button
                     onClick={() => removePendingFile(i)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#2a2a2a] border border-[#444] rounded-full text-gray-400 hover:bg-red-500 hover:text-white text-xs flex items-center justify-center transition-colors z-10 shadow-sm"
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#111] border border-[#3a3a3a] rounded-full text-gray-500 hover:bg-red-500/90 hover:text-white hover:border-red-500 flex items-center justify-center transition-all z-10 shadow"
+                    style={{ fontSize: '14px', lineHeight: 1 }}
                   >
                     ×
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Recording indicator inside box */}
+          {isRecording && (
+            <div className="mx-3 mt-3 flex items-center gap-2.5 bg-red-500/8 border border-red-500/20 rounded-xl px-3 py-2">
+              <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse flex-shrink-0" />
+              <span className="text-xs text-red-300 font-medium">Recording…</span>
+              <button
+                onClick={stopRecording}
+                className="ml-auto text-xs text-red-400 hover:text-red-300 font-semibold underline underline-offset-2 transition-colors"
+              >
+                Stop
+              </button>
             </div>
           )}
 
@@ -551,77 +611,87 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={isRecording ? '🔴 Recording audio — click Stop when done...' : `Message ${chat.name}...`}
+            placeholder={isRecording ? 'Add a message or send now…' : `Message ${chat.name}…`}
             rows={1}
-            className="w-full bg-transparent px-4 pt-3 pb-2 text-gray-100 placeholder-gray-600 focus:outline-none resize-none max-h-32 text-sm"
-            style={{ minHeight: '44px' }}
+            className="w-full bg-transparent px-4 pt-3 pb-2 text-gray-100 placeholder-gray-600 focus:outline-none resize-none text-sm leading-relaxed"
+            style={{ minHeight: '46px', maxHeight: '160px' }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement
               target.style.height = 'auto'
-              target.style.height = Math.min(target.scrollHeight, 128) + 'px'
+              target.style.height = Math.min(target.scrollHeight, 160) + 'px'
             }}
           />
 
           {/* Bottom toolbar */}
-          <div className="flex items-center justify-between px-3 pb-3 pt-1">
-            {/* Left: attachment buttons */}
-            <div className="flex items-center gap-0.5">
-              {/* Image */}
-              <button
-                onClick={() => imageInputRef.current?.click()}
-                disabled={streaming}
-                title="Attach image"
-                className="flex items-center gap-1.5 h-8 px-2.5 text-gray-500 hover:text-[#00ff88] hover:bg-[#00ff88]/5 rounded-lg transition-colors disabled:opacity-40 text-xs font-medium"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                  <circle cx="8.5" cy="8.5" r="1.5" />
-                  <polyline points="21 15 16 10 5 21" />
-                </svg>
-                <span className="hidden sm:inline">Image</span>
-              </button>
+          <div className="flex items-center justify-between px-3 pb-3 pt-0.5">
 
-              {/* File */}
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                disabled={streaming}
-                title="Attach file"
-                className="flex items-center gap-1.5 h-8 px-2.5 text-gray-500 hover:text-[#00ff88] hover:bg-[#00ff88]/5 rounded-lg transition-colors disabled:opacity-40 text-xs font-medium"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-                </svg>
-                <span className="hidden sm:inline">File</span>
-              </button>
+            {/* Left: + attach button */}
+            <div className="flex items-center gap-1" ref={attachMenuRef}>
+              <div className="relative">
+                <button
+                  onClick={() => setShowAttachMenu(v => !v)}
+                  disabled={streaming}
+                  title="Attach"
+                  className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all disabled:opacity-40 ${
+                    showAttachMenu
+                      ? 'bg-[#00ff88]/15 text-[#00ff88] rotate-45'
+                      : 'text-gray-500 hover:text-gray-300 hover:bg-[#242424]'
+                  }`}
+                  style={{ transition: 'transform 0.18s, background 0.15s, color 0.15s' }}
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                    <line x1="12" y1="5" x2="12" y2="19" />
+                    <line x1="5" y1="12" x2="19" y2="12" />
+                  </svg>
+                </button>
 
-              {/* Record */}
-              <button
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={streaming}
-                title={isRecording ? 'Stop recording' : 'Record audio'}
-                className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg transition-colors disabled:opacity-40 text-xs font-medium ${
-                  isRecording
-                    ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20'
-                    : 'text-gray-500 hover:text-[#00ff88] hover:bg-[#00ff88]/5'
-                }`}
-              >
-                {isRecording ? (
-                  <>
-                    <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse flex-shrink-0" />
-                    <span className="hidden sm:inline">Stop</span>
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                      <line x1="12" y1="19" x2="12" y2="23" />
-                      <line x1="8" y1="23" x2="16" y2="23" />
-                    </svg>
-                    <span className="hidden sm:inline">Record</span>
-                  </>
+                {/* Attach popover */}
+                {showAttachMenu && (
+                  <div className="absolute bottom-10 left-0 bg-[#1e1e1e] border border-[#2e2e2e] rounded-2xl shadow-2xl py-1.5 min-w-[172px] z-20 animate-in fade-in slide-in-from-bottom-2 duration-150">
+                    <button
+                      onClick={() => { imageInputRef.current?.click(); setShowAttachMenu(false) }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-purple-500/15 flex items-center justify-center flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a78bfa" strokeWidth="2">
+                          <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                          <circle cx="8.5" cy="8.5" r="1.5" />
+                          <polyline points="21 15 16 10 5 21" />
+                        </svg>
+                      </span>
+                      Photo / Video
+                    </button>
+                    <button
+                      onClick={() => { fileInputRef.current?.click(); setShowAttachMenu(false) }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-blue-500/15 flex items-center justify-center flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#60a5fa" strokeWidth="2">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                        </svg>
+                      </span>
+                      Document
+                    </button>
+                    <div className="mx-3 my-1 border-t border-[#2a2a2a]" />
+                    <button
+                      onClick={() => { startRecording(); setShowAttachMenu(false) }}
+                      disabled={isRecording}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-300 hover:bg-[#2a2a2a] hover:text-white transition-colors disabled:opacity-40"
+                    >
+                      <span className="w-7 h-7 rounded-lg bg-red-500/15 flex items-center justify-center flex-shrink-0">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="2">
+                          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                          <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                          <line x1="12" y1="19" x2="12" y2="23" />
+                          <line x1="8" y1="23" x2="16" y2="23" />
+                        </svg>
+                      </span>
+                      Record audio
+                    </button>
+                  </div>
                 )}
-              </button>
+              </div>
             </div>
 
             {/* Right: Send / Stop */}
@@ -629,10 +699,10 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
               <button
                 onClick={() => abortRef.current?.abort()}
                 title="Stop generating"
-                className="flex items-center gap-1.5 h-8 px-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-colors text-xs font-semibold"
+                className="flex items-center gap-1.5 h-8 px-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/20 active:scale-95 transition-all text-xs font-semibold"
               >
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2.5" />
                 </svg>
                 Stop
               </button>
@@ -640,9 +710,9 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() && pendingFiles.length === 0}
-                className="w-8 h-8 bg-[#00ff88] text-black rounded-xl flex items-center justify-center hover:bg-[#00dd77] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                className="w-8 h-8 bg-[#00ff88] text-black rounded-xl flex items-center justify-center hover:bg-[#00e87a] active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed transition-all flex-shrink-0"
               >
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />
                 </svg>
@@ -739,6 +809,11 @@ function AttachmentDisplay({ attachment, onImageClick }: { attachment: Attachmen
 function PendingAttachmentPreview({ pf }: { pf: PendingFile }) {
   const isImage = pf.file.type.startsWith('image/')
   const isAudio = pf.file.type.startsWith('audio/')
+  const isVideo = pf.file.type.startsWith('video/')
+  const isPdf = pf.file.type === 'application/pdf' || pf.file.name.endsWith('.pdf')
+
+  const fileIcon = isPdf ? '📄' : isAudio ? '🎤' : isVideo ? '🎬' : '📎'
+  const iconColor = isPdf ? '#f87171' : isAudio ? '#00ff88' : isVideo ? '#60a5fa' : '#9ca3af'
 
   if (isImage) {
     return (
@@ -746,26 +821,17 @@ function PendingAttachmentPreview({ pf }: { pf: PendingFile }) {
       <img
         src={pf.previewUrl}
         alt={pf.file.name}
-        className="w-16 h-16 rounded-lg object-cover border border-[#2a2a2a]"
+        className="w-14 h-14 rounded-xl object-cover border border-[#2a2a2a]"
       />
     )
   }
 
-  if (isAudio) {
-    return (
-      <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2">
-        <span className="text-[#00ff88] text-sm">🎤</span>
-        <span className="text-xs text-gray-400 max-w-[100px] truncate">{pf.file.name}</span>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2">
-      <span className="text-sm">📎</span>
+    <div className="flex items-center gap-2.5 bg-[#242424] border border-[#333] rounded-xl px-3 py-2 max-w-[160px]">
+      <span className="text-base flex-shrink-0" style={{ color: iconColor }}>{fileIcon}</span>
       <div className="min-w-0">
-        <div className="text-xs text-gray-400 max-w-[100px] truncate">{pf.file.name}</div>
-        <div className="text-[10px] text-gray-600">{formatBytes(pf.file.size)}</div>
+        <div className="text-xs text-gray-300 truncate font-medium">{pf.file.name}</div>
+        <div className="text-[10px] text-gray-600 mt-0.5">{formatBytes(pf.file.size)}</div>
       </div>
     </div>
   )
