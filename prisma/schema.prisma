@@ -76,3 +76,32 @@ model PriceEntry {
   @@index([productId])
   @@index([scrapedAt])
 }
+
+model Run {
+  id        String    @id @default(cuid())
+  title     String
+  status    String    @default("pending")
+  model     String    @default("ollama/qwen2.5:7b")
+  steps     RunStep[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model RunStep {
+  id             String   @id @default(cuid())
+  runId          String
+  run            Run      @relation(fields: [runId], references: [id], onDelete: Cascade)
+  order          Int
+  prompt         String
+  result         String   @default("")
+  status         String   @default("pending")
+  model          String?
+  retries        Int      @default(0)
+  maxRetries     Int      @default(2)
+  requiresReview Boolean  @default(false)
+  approved       Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([runId])
+}

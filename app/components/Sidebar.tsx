@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'todo' | 'prices'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices'
 
 interface Props {
   activeNav: NavItem
@@ -62,6 +62,15 @@ function TodoIcon({ active }: { active: boolean }) {
   )
 }
 
+function SupervisorIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="5 3 19 12 5 21 5 3" />
+      <line x1="19" y1="3" x2="19" y2="21" />
+    </svg>
+  )
+}
+
 function CalcIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -94,6 +103,7 @@ const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean 
   { id: 'chat',      label: 'Chat',       Icon: ChatIcon },
   { id: 'prices',    label: 'Hardware',   Icon: GpuIcon },
   { id: 'monitoring',label: 'Servers',    Icon: MonitorIcon },
+  { id: 'supervisor',label: 'Supervisor', Icon: SupervisorIcon },
   { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
   { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
 ]
