@@ -63,10 +63,9 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
     const items = await zabbixRequest('item.get', {
       hostids: [host.hostid],
       output: ['itemid', 'key_', 'lastvalue', 'lastclock', 'units'],
-      search: { key_: '' },
-      searchByAny: true,
       filter: {
         key_: [
+          // Linux CPU
           'system.cpu.util',
           'system.cpu.util[,user]',
           'system.cpu.util[,system]',
@@ -75,10 +74,18 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
           'system.cpu.util[,interrupt]',
           'system.cpu.util[,softirq]',
           'system.cpu.util[,steal]',
+          // macOS CPU (load average per CPU — multiply × 100 for rough %)
+          'system.cpu.load[percpu,avg1]',
+          // RAM (same keys for both)
           'vm.memory.size[available]',
           'vm.memory.size[total]',
+          // Linux disk
           'vfs.fs.size[/,used]',
           'vfs.fs.size[/,total]',
+          // macOS disk (dependent items)
+          'vfs.fs.dependent.size[/,used]',
+          'vfs.fs.dependent.size[/,total]',
+          // Uptime
           'system.uptime',
         ],
       },
@@ -94,10 +101,13 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
     // Determine if we got any data at all
     const hasData = Object.keys(kv).length > 0
 
-    // CPU: prefer single util key, else sum individual modes
+    // CPU: Linux uses system.cpu.util (%), macOS uses system.cpu.load[percpu,avg1] (load avg)
     let cpu = 0
     if (kv['system.cpu.util'] !== undefined) {
       cpu = Math.round(kv['system.cpu.util'] * 10) / 10
+    } else if (kv['system.cpu.load[percpu,avg1]'] !== undefined) {
+      // Load avg per CPU: 1.0 = 100% for one core; clamp to 100
+      cpu = Math.min(100, Math.round(kv['system.cpu.load[percpu,avg1]'] * 100 * 10) / 10)
     } else {
       const modes = ['user', 'system', 'nice', 'iowait', 'interrupt', 'softirq', 'steal']
       for (const m of modes) {
@@ -107,7 +117,7 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
       cpu = Math.round(cpu * 10) / 10
     }
 
-    // RAM
+    // RAM (same keys on both Linux and macOS)
     const ramAvail = kv['vm.memory.size[available]'] ?? 0
     const ramTotal = kv['vm.memory.size[total]'] ?? 0
     const ramUsed = ramTotal - ramAvail
@@ -115,9 +125,9 @@ async function fetchHostMetrics(host: { hostid: string; name: string; icon: stri
     const ramTotalGB = bytesToGB(ramTotal)
     const ramPercent = ramTotalGB > 0 ? Math.round((ramUsedGB / ramTotalGB) * 1000) / 10 : 0
 
-    // Disk
-    const diskUsedBytes = kv['vfs.fs.size[/,used]'] ?? 0
-    const diskTotalBytes = kv['vfs.fs.size[/,total]'] ?? 0
+    // Disk: try Linux keys first, fall back to macOS dependent keys
+    const diskUsedBytes = kv['vfs.fs.size[/,used]'] ?? kv['vfs.fs.dependent.size[/,used]'] ?? 0
+    const diskTotalBytes = kv['vfs.fs.size[/,total]'] ?? kv['vfs.fs.dependent.size[/,total]'] ?? 0
     const diskUsedGB = bytesToGB(diskUsedBytes)
     const diskTotalGB = bytesToGB(diskTotalBytes)
     const diskPercent = diskTotalGB > 0 ? Math.round((diskUsedGB / diskTotalGB) * 1000) / 10 : 0
