@@ -122,14 +122,17 @@ export default function DashboardPage() {
   ]
 
   return (
-    <div className="flex h-screen overflow-hidden bg-[#0f0f0f]">
+    <div className="flex h-dvh bg-[#0f0f0f]">
       <Sidebar activeNav={activeNav} onNavChange={setActiveNav} onLogout={handleLogout} />
 
-      <main className="flex-1 flex flex-col min-w-0 h-full overflow-hidden">
-        {/* pt-12 = mobile top header height; pb-14 = mobile bottom tab bar height */}
-        <div className="flex-1 min-h-0 flex flex-col pt-12 md:pt-0">
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Spacer for the fixed mobile top header (48px) */}
+        <div className="h-12 flex-shrink-0 md:hidden" />
+
+        {/* Content area — chat needs overflow-hidden+flex (has internal scroll); others scroll freely */}
+        <div className={`flex-1 ${activeNav === 'chat' ? 'overflow-hidden flex flex-col' : 'overflow-y-auto'}`}>
           {loading ? (
-            <div className="flex items-center justify-center h-full">
+            <div className="flex items-center justify-center py-20">
               <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeNav === 'dashboard' ? (

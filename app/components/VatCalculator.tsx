@@ -102,7 +102,7 @@ export default function VatCalculator() {
   const inputCls = 'w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-3 text-white text-base focus:outline-none focus:border-[#00ff88] transition-colors'
 
   return (
-    <div className="flex-1 overflow-y-auto bg-[#0f0f0f]">
+    <div className="min-h-full bg-[#0f0f0f]">
       <div className="max-w-2xl w-full mx-auto p-4 pb-8 space-y-4">
 
         {/* Header */}

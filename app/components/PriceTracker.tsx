@@ -104,7 +104,7 @@ export default function PriceTracker() {
   }, null)
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+    <div className="p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-5">
         {/* Header */}
         <div className="flex items-start justify-between gap-3">

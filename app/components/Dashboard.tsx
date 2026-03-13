@@ -69,7 +69,7 @@ export default function Dashboard({ allChats, onOpenChat }: Props) {
     .slice(0, 6)
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto bg-[#0f0f0f]">
+    <div className="min-h-full bg-[#0f0f0f]">
       <div className="max-w-4xl w-full mx-auto p-4 md:p-8">
         {/* Greeting */}
         <div className="mb-8">
