@@ -51,6 +51,8 @@ async function generateResponse(
         stream: false,
         messages: aiMessages,
       }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      ...({ headersTimeout: 120000, bodyTimeout: 120000 } as any),
     })
 
     if (!response.ok) {
