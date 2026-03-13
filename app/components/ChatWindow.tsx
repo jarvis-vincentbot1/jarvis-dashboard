@@ -564,23 +564,31 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
               target.style.height = Math.min(target.scrollHeight, 128) + 'px'
             }}
           />
-          <button
-            onClick={sendMessage}
-            disabled={(!input.trim() && pendingFiles.length === 0) || streaming}
-            className="w-12 h-12 bg-[#00ff88] text-black rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-[#00dd77] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            {streaming ? (
-              <span className="w-4 h-4 border-2 border-black border-t-transparent rounded-full animate-spin" />
-            ) : (
+          {streaming ? (
+            <button
+              onClick={() => abortRef.current?.abort()}
+              title="Stop generating"
+              className="w-12 h-12 bg-red-500 text-white rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-red-600 transition-colors"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="4" y="4" width="16" height="16" rx="2" />
+              </svg>
+            </button>
+          ) : (
+            <button
+              onClick={sendMessage}
+              disabled={!input.trim() && pendingFiles.length === 0}
+              className="w-12 h-12 bg-[#00ff88] text-black rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-[#00dd77] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                 <line x1="22" y1="2" x2="11" y2="13" />
                 <polygon points="22 2 15 22 11 13 2 9 22 2" />
               </svg>
-            )}
-          </button>
+            </button>
+          )}
         </div>
         <div className="text-xs text-gray-700 mt-2 text-center">
-          Enter to send · Shift+Enter for new line · Drag & drop files
+          Enter to send · Shift+Enter for new line · Drag & drop files · Stop button cancels generation
         </div>
       </div>
 
