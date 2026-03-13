@@ -14,6 +14,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   attachments?: Attachment[]
+  status?: string // 'done' | 'generating' | 'error'
   createdAt: string
 }
 
@@ -46,12 +47,13 @@ function formatBytes(bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
 }
 
+const POLL_INTERVAL_MS = 3000
+const POLL_TIMEOUT_MS = 120_000
+
 export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
-  const [streaming, setStreaming] = useState(false)
-  const [streamingContent, setStreamingContent] = useState('')
   const [showMenu, setShowMenu] = useState(false)
   const [showModelPicker, setShowModelPicker] = useState(false)
   const [selectedModel, setSelectedModel] = useState('anthropic/claude-sonnet-4-6')
@@ -62,18 +64,24 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   const [isRecording, setIsRecording] = useState(false)
   const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
   const [uploadError, setUploadError] = useState<string | null>(null)
-
   const [showAttachMenu, setShowAttachMenu] = useState(false)
   const [isDragging, setIsDragging] = useState(false)
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
-  const abortRef = useRef<AbortController | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const attachMenuRef = useRef<HTMLDivElement>(null)
+  const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const pollStartRef = useRef<number>(0)
+  const chatIdRef = useRef(chat.id)
+
+  // Keep chatIdRef current across renders
+  chatIdRef.current = chat.id
+
+  const isGenerating = messages.some(m => m.status === 'generating')
 
   // Load available models
   useEffect(() => {
@@ -87,25 +95,101 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [])
 
+  const stopPolling = useCallback(() => {
+    if (pollIntervalRef.current) {
+      clearInterval(pollIntervalRef.current)
+      pollIntervalRef.current = null
+    }
+  }, [])
+
+  const fetchMessages = useCallback(async (chatId: string): Promise<Message[] | null> => {
+    try {
+      const res = await fetch(`/api/messages?chatId=${chatId}`)
+      if (!res.ok) return null
+      return await res.json()
+    } catch {
+      return null
+    }
+  }, [])
+
+  const handleMessagesUpdate = useCallback((data: Message[], chatId: string) => {
+    setMessages(data)
+    if (!data.some(m => m.status === 'generating')) {
+      stopPolling()
+      // Auto-generate title after first completed exchange
+      if (onTitleUpdate) {
+        // Only fire title if we have an assistant message with content (first real exchange)
+        const hasAssistant = data.some(m => m.role === 'assistant' && m.content && m.status === 'done')
+        if (hasAssistant) {
+          fetch(`/api/chats/${chatId}/title`, { method: 'POST' })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.name && d.name !== 'New chat') onTitleUpdate(chatId, d.name) })
+            .catch(() => {})
+        }
+      }
+    }
+  }, [stopPolling, onTitleUpdate])
+
+  const startPolling = useCallback((chatId: string) => {
+    stopPolling()
+    pollStartRef.current = Date.now()
+    pollIntervalRef.current = setInterval(async () => {
+      if (Date.now() - pollStartRef.current > POLL_TIMEOUT_MS) {
+        setMessages(prev => prev.map(m =>
+          m.status === 'generating'
+            ? { ...m, status: 'error', content: '⚠️ Response timed out.' }
+            : m
+        ))
+        stopPolling()
+        return
+      }
+      const data = await fetchMessages(chatId)
+      if (data) handleMessagesUpdate(data, chatId)
+    }, POLL_INTERVAL_MS)
+  }, [stopPolling, fetchMessages, handleMessagesUpdate])
+
   // Load messages when chat changes
   useEffect(() => {
     setMessages([])
-    setStreamingContent('')
     setLoading(true)
     setPendingFiles([])
+    stopPolling()
 
-    fetch(`/api/chats/${chat.id}/messages`)
-      .then((r) => r.json())
-      .then((data) => {
-        if (Array.isArray(data)) setMessages(data)
-      })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [chat.id])
+    const chatId = chat.id
+    fetchMessages(chatId).then(data => {
+      if (data) {
+        setMessages(data)
+        if (data.some(m => m.status === 'generating')) {
+          startPolling(chatId)
+        }
+      }
+    }).catch(console.error).finally(() => setLoading(false))
+
+    return () => stopPolling()
+  }, [chat.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Resume polling when app comes back to foreground
+  useEffect(() => {
+    function handleVisibility() {
+      if (document.visibilityState !== 'visible') return
+      const chatId = chatIdRef.current
+      fetchMessages(chatId).then(data => {
+        if (!data) return
+        setMessages(data)
+        if (data.some(m => m.status === 'generating')) {
+          startPolling(chatId)
+        } else {
+          stopPolling()
+        }
+      }).catch(() => {})
+    }
+    document.addEventListener('visibilitychange', handleVisibility)
+    return () => document.removeEventListener('visibilitychange', handleVisibility)
+  }, [fetchMessages, startPolling, stopPolling])
 
   useEffect(() => {
     scrollToBottom()
-  }, [messages, streamingContent, scrollToBottom])
+  }, [messages, scrollToBottom])
 
   // Clean up object URLs on unmount
   useEffect(() => {
@@ -145,10 +229,9 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
       recorder.onstop = () => {
         stream.getTracks().forEach(t => t.stop())
         const mimeType = recorder.mimeType || 'audio/webm'
-        const blob = new Blob(audioChunksRef.current, { type: mimeType })
         const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm'
-        const file = new File([blob], `recording-${Date.now()}.${ext}`, { type: mimeType })
-        addFiles([file])
+        const blob = new Blob(audioChunksRef.current, { type: mimeType })
+        addFiles([new File([blob], `recording-${Date.now()}.${ext}`, { type: mimeType })])
         setIsRecording(false)
       }
 
@@ -176,11 +259,9 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
 
   async function sendMessage() {
     const text = input.trim()
-    if ((!text && pendingFiles.length === 0) || streaming) return
+    if ((!text && pendingFiles.length === 0) || isGenerating) return
 
     setInput('')
-    setStreaming(true)
-    setStreamingContent('')
     setUploadError(null)
 
     // Upload files first
@@ -190,25 +271,35 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
         attachments = await Promise.all(pendingFiles.map(uploadFile))
       } catch (err) {
         setUploadError(err instanceof Error ? err.message : 'Upload failed')
-        setStreaming(false)
         return
       }
-      // Clean up object URLs
       pendingFiles.forEach(p => URL.revokeObjectURL(p.previewUrl))
       setPendingFiles([])
     }
 
-    // Optimistically add user message
-    const tempUserMsg: Message = {
-      id: `temp-${Date.now()}`,
-      role: 'user',
-      content: text,
-      attachments: attachments.length ? attachments : undefined,
-      createdAt: new Date().toISOString(),
-    }
-    setMessages((prev) => [...prev, tempUserMsg])
+    const now = new Date().toISOString()
+    const tempUserId = `temp-user-${Date.now()}`
+    const tempAssistantId = `temp-assistant-${Date.now()}`
 
-    abortRef.current = new AbortController()
+    // Optimistically add user message + generating placeholder
+    setMessages(prev => [
+      ...prev,
+      {
+        id: tempUserId,
+        role: 'user',
+        content: text || '(see attachments)',
+        attachments: attachments.length ? attachments : undefined,
+        status: 'done',
+        createdAt: now,
+      },
+      {
+        id: tempAssistantId,
+        role: 'assistant',
+        content: '',
+        status: 'generating',
+        createdAt: now,
+      },
+    ])
 
     try {
       const res = await fetch('/api/chat', {
@@ -220,108 +311,53 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
           model: selectedModel,
           attachments: attachments.length ? attachments : undefined,
         }),
-        signal: abortRef.current.signal,
       })
 
-      if (!res.ok) {
-        throw new Error('Failed to get response')
-      }
+      if (!res.ok) throw new Error('Failed to send message')
 
-      // Handle quick-reply JSON responses (e.g. todo commands)
-      const contentType = res.headers.get('content-type') || ''
-      if (contentType.includes('application/json')) {
-        const json = await res.json()
-        if (json.quickReply) {
-          const assistantMsg: Message = {
+      const json = await res.json()
+
+      if (json.quickReply) {
+        // Synchronous todo shortcuts — replace temp messages with local ones
+        setMessages(prev => [
+          ...prev.filter(m => m.id !== tempUserId && m.id !== tempAssistantId),
+          {
+            id: `quick-user-${Date.now()}`,
+            role: 'user',
+            content: text,
+            status: 'done',
+            createdAt: now,
+          },
+          {
             id: `quick-${Date.now()}`,
             role: 'assistant',
             content: json.quickReply,
+            status: 'done',
             createdAt: new Date().toISOString(),
-          }
-          setMessages((prev) => [...prev, assistantMsg])
-
-          // Auto-title on first quick-reply exchange
-          if (chat.name === 'New chat' && onTitleUpdate) {
-            fetch(`/api/chats/${chat.id}/title`, { method: 'POST' })
-              .then((r) => r.ok ? r.json() : null)
-              .then((d) => { if (d?.name) onTitleUpdate(chat.id, d.name) })
-              .catch(() => {})
-          }
+          },
+        ])
+        if (chat.name === 'New chat' && onTitleUpdate) {
+          fetch(`/api/chats/${chat.id}/title`, { method: 'POST' })
+            .then(r => r.ok ? r.json() : null)
+            .then(d => { if (d?.name) onTitleUpdate(chat.id, d.name) })
+            .catch(() => {})
         }
         return
       }
 
-      if (!res.body) throw new Error('No response body')
-
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let fullContent = ''
-
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-
-        const chunk = decoder.decode(value)
-        const lines = chunk.split('\n')
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const data = line.slice(6)
-            if (data === '[DONE]') {
-              const assistantMsg: Message = {
-                id: `temp-assistant-${Date.now()}`,
-                role: 'assistant',
-                content: fullContent,
-                createdAt: new Date().toISOString(),
-              }
-              setMessages((prev) => [...prev, assistantMsg])
-              setStreamingContent('')
-              fetch(`/api/chats/${chat.id}/messages`)
-                .then((r) => r.json())
-                .then((data) => {
-                  if (Array.isArray(data)) setMessages(data)
-                })
-                .catch(console.error)
-
-              // Auto-generate a title after the very first exchange
-              if (chat.name === 'New chat' && onTitleUpdate) {
-                fetch(`/api/chats/${chat.id}/title`, { method: 'POST' })
-                  .then((r) => r.ok ? r.json() : null)
-                  .then((d) => { if (d?.name) onTitleUpdate(chat.id, d.name) })
-                  .catch(() => {})
-              }
-
-              break
-            }
-
-            try {
-              const parsed = JSON.parse(data)
-              if (parsed.text) {
-                fullContent += parsed.text
-                setStreamingContent(fullContent)
-              }
-              if (parsed.error) {
-                throw new Error(parsed.error)
-              }
-            } catch {}
-          }
-        }
+      // Async response: fetch real messages from DB and start polling
+      if (json.status === 'generating') {
+        const data = await fetchMessages(chat.id)
+        if (data) setMessages(data)
+        startPolling(chat.id)
       }
-    } catch (err: unknown) {
-      if (err instanceof Error && err.name !== 'AbortError') {
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: `error-${Date.now()}`,
-            role: 'assistant',
-            content: '⚠️ Failed to get response. Please try again.',
-            createdAt: new Date().toISOString(),
-          },
-        ])
-      }
+    } catch {
+      setMessages(prev => prev.map(m =>
+        m.id === tempAssistantId
+          ? { ...m, status: 'error', content: '⚠️ Failed to send message. Please try again.' }
+          : m
+      ))
     } finally {
-      setStreaming(false)
-      setStreamingContent('')
       inputRef.current?.focus()
     }
   }
@@ -451,7 +487,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
           <div className="text-center text-gray-600 text-sm py-8">Loading messages...</div>
         )}
 
-        {!loading && messages.length === 0 && !streaming && (
+        {!loading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center">
             <div className="w-12 h-12 rounded-full flex items-center justify-center mb-4 text-xl bg-[#00ff88]/10 border border-[#00ff88]/20">
               <span className="text-[#00ff88]">◈</span>
@@ -480,57 +516,34 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
                   ))}
                 </div>
               )}
-              {/* Text bubble */}
-              {msg.content && (
-                <div
-                  className={`
-                    rounded-2xl px-4 py-3 text-sm
-                    ${msg.role === 'user'
-                      ? 'bg-[#00ff88] text-black font-medium rounded-br-sm'
-                      : 'bg-[#1f1f1f] text-gray-200 rounded-bl-sm border border-[#2a2a2a]'
-                    }
-                  `}
-                >
-                  {msg.role === 'assistant' ? (
-                    <div
-                      className="prose-jarvis"
-                      dangerouslySetInnerHTML={{
-                        __html: formatMessageHtml(msg.content),
-                      }}
-                    />
-                  ) : (
-                    <span className="whitespace-pre-wrap">{msg.content}</span>
-                  )}
-                </div>
-              )}
+              {/* Bubble */}
+              <div
+                className={`
+                  rounded-2xl px-4 py-3 text-sm
+                  ${msg.role === 'user'
+                    ? 'bg-[#00ff88] text-black font-medium rounded-br-sm'
+                    : 'bg-[#1f1f1f] text-gray-200 rounded-bl-sm border border-[#2a2a2a]'
+                  }
+                `}
+              >
+                {msg.role === 'assistant' && msg.status === 'generating' && !msg.content ? (
+                  <div className="flex gap-1 items-center py-1">
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                ) : msg.role === 'assistant' ? (
+                  <div
+                    className="prose-jarvis"
+                    dangerouslySetInnerHTML={{ __html: formatMessageHtml(msg.content) }}
+                  />
+                ) : (
+                  <span className="whitespace-pre-wrap">{msg.content}</span>
+                )}
+              </div>
             </div>
           </div>
         ))}
-
-        {/* Streaming message */}
-        {streaming && (
-          <div className="message-animate flex justify-start">
-            <div className="flex-shrink-0 w-7 h-7 rounded-full bg-[#242424] border border-[#2a2a2a] flex items-center justify-center mr-2.5 mt-0.5">
-              <span className="text-[#00ff88] text-xs font-bold">J</span>
-            </div>
-            <div className="max-w-[80%] md:max-w-[70%] bg-[#1f1f1f] rounded-2xl rounded-bl-sm border border-[#2a2a2a] px-4 py-3 text-sm text-gray-200">
-              {streamingContent ? (
-                <div
-                  className="prose-jarvis cursor-blink"
-                  dangerouslySetInnerHTML={{
-                    __html: formatMessageHtml(streamingContent),
-                  }}
-                />
-              ) : (
-                <div className="flex gap-1 items-center py-1">
-                  <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                  <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                  <span className="w-1.5 h-1.5 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                </div>
-              )}
-            </div>
-          </div>
-        )}
 
         <div ref={messagesEndRef} />
       </div>
@@ -591,7 +604,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
             </div>
           )}
 
-          {/* Recording indicator inside box */}
+          {/* Recording indicator */}
           {isRecording && (
             <div className="mx-3 mt-3 flex items-center gap-2.5 bg-red-500/8 border border-red-500/20 rounded-xl px-3 py-2">
               <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse flex-shrink-0" />
@@ -630,7 +643,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
               <div className="relative">
                 <button
                   onClick={() => setShowAttachMenu(v => !v)}
-                  disabled={streaming}
+                  disabled={isGenerating}
                   title="Attach"
                   className={`w-8 h-8 flex items-center justify-center rounded-xl transition-all disabled:opacity-40 ${
                     showAttachMenu
@@ -694,30 +707,24 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
               </div>
             </div>
 
-            {/* Right: Send / Stop */}
-            {streaming ? (
-              <button
-                onClick={() => abortRef.current?.abort()}
-                title="Stop generating"
-                className="flex items-center gap-1.5 h-8 px-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/20 active:scale-95 transition-all text-xs font-semibold"
-              >
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
-                  <rect x="4" y="4" width="16" height="16" rx="2.5" />
+            {/* Right: Send button */}
+            <button
+              onClick={sendMessage}
+              disabled={(!input.trim() && pendingFiles.length === 0) || isGenerating}
+              className="w-8 h-8 bg-[#00ff88] text-black rounded-xl flex items-center justify-center hover:bg-[#00e87a] active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed transition-all flex-shrink-0"
+            >
+              {isGenerating ? (
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="animate-spin">
+                  <path d="M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" opacity="0.3" />
+                  <path d="M21 12a9 9 0 0 1-9 9" />
                 </svg>
-                Stop
-              </button>
-            ) : (
-              <button
-                onClick={sendMessage}
-                disabled={!input.trim() && pendingFiles.length === 0}
-                className="w-8 h-8 bg-[#00ff88] text-black rounded-xl flex items-center justify-center hover:bg-[#00e87a] active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed transition-all flex-shrink-0"
-              >
+              ) : (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
                   <line x1="22" y1="2" x2="11" y2="13" />
                   <polygon points="22 2 15 22 11 13 2 9 22 2" />
                 </svg>
-              </button>
-            )}
+              )}
+            </button>
           </div>
         </div>
       </div>
