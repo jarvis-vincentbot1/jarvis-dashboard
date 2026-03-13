@@ -12,6 +12,7 @@ export async function middleware(request: NextRequest) {
     pathname === '/api/prices/scrape' ||  // cron endpoint, auth via X-Cron-Secret header
     pathname.startsWith('/_next') ||
     pathname.startsWith('/icons') ||
+    pathname.startsWith('/uploads') ||   // uploaded files (images, audio, etc.)
     pathname === '/manifest.json' ||
     pathname === '/favicon.ico' ||
     pathname === '/sw.js' ||

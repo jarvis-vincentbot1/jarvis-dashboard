@@ -111,15 +111,38 @@ export async function POST(request: Request) {
 
   const systemPrompt = `You are Jarvis, a personal AI assistant. Be concise, direct, and helpful.`
 
-  // Build attachment context note if attachments were sent
+  // Build the last user message with optional image/file attachments
   interface AttachmentMeta { name: string; type: string; size: number; url: string }
-  const attachmentNote = attachments?.length
-    ? '\n\n[Attachments: ' +
-      (attachments as AttachmentMeta[])
-        .map((a) => `${a.name} (${a.type}, ${Math.round(a.size / 1024)}KB)`)
-        .join(', ') +
-      ']'
-    : ''
+  type ContentPart =
+    | { type: 'text'; text: string }
+    | { type: 'image_url'; image_url: { url: string } }
+
+  const lastMsgContent: ContentPart[] = []
+
+  // Add image attachments as vision content
+  if (attachments?.length) {
+    const imageAttachments = (attachments as AttachmentMeta[]).filter(a => a.type.startsWith('image/'))
+    const nonImages = (attachments as AttachmentMeta[]).filter(a => !a.type.startsWith('image/'))
+
+    for (const img of imageAttachments) {
+      // Make URL absolute so Claude can fetch it
+      const absoluteUrl = img.url.startsWith('http') ? img.url : `${OPENCLAW_API_URL.replace(/\/v1.*/, '')}${img.url}`
+      // Use the jarvis domain for image URLs
+      const imageUrl = img.url.startsWith('/') ? `https://jarvis.kuiler.nl${img.url}` : img.url
+      lastMsgContent.push({ type: 'image_url', image_url: { url: imageUrl } })
+    }
+
+    const textParts: string[] = []
+    if (message?.trim()) textParts.push(message.trim())
+    if (nonImages.length) {
+      textParts.push('[Files: ' + nonImages.map(a => `${a.name} (${a.type}, ${Math.round(a.size / 1024)}KB)`).join(', ') + ']')
+    }
+    lastMsgContent.push({ type: 'text', text: textParts.join('\n\n') || '(see images above)' })
+  }
+
+  const lastUserMessage = lastMsgContent.length > 0
+    ? { role: 'user' as const, content: lastMsgContent }
+    : messages[messages.length - 1]
 
   // Stream via OpenClaw's OpenAI-compatible endpoint
   const encoder = new TextEncoder()
@@ -141,11 +164,7 @@ export async function POST(request: Request) {
             messages: [
               { role: 'system', content: systemPrompt },
               ...messages.slice(0, -1),
-              // Append attachment note to the last user message
-              {
-                ...messages[messages.length - 1],
-                content: (messages[messages.length - 1]?.content ?? '') + attachmentNote,
-              },
+              lastUserMessage,
             ],
           }),
         })

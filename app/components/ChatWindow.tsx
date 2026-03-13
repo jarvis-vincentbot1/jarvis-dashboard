@@ -67,6 +67,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const imageInputRef = useRef<HTMLInputElement>(null)
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
 
@@ -526,7 +527,29 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
         <div className="flex gap-2 items-end">
           {/* Attachment toolbar */}
           <div className="flex gap-1 flex-shrink-0 pb-1">
-            {/* File/image upload */}
+            {/* Image upload */}
+            <button
+              onClick={() => imageInputRef.current?.click()}
+              disabled={streaming}
+              title="Attach image"
+              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#00ff88] hover:bg-[#1a1a1a] rounded-lg transition-colors disabled:opacity-40"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                <circle cx="8.5" cy="8.5" r="1.5" />
+                <polyline points="21 15 16 10 5 21" />
+              </svg>
+            </button>
+            <input
+              ref={imageInputRef}
+              type="file"
+              multiple
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => e.target.files && addFiles(e.target.files)}
+            />
+
+            {/* File upload */}
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={streaming}
@@ -541,7 +564,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
               ref={fileInputRef}
               type="file"
               multiple
-              accept="image/*,video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md"
+              accept="video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md"
               className="hidden"
               onChange={(e) => e.target.files && addFiles(e.target.files)}
             />
@@ -606,7 +629,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
           )}
         </div>
         <div className="text-xs text-gray-700 mt-2 text-center">
-          Enter to send · Shift+Enter for new line · Drag & drop files · Stop button cancels generation
+          Enter to send · Shift+Enter for new line · 🖼 Image · 📎 File · 🎤 Record · Drag & drop
         </div>
       </div>
 
