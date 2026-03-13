@@ -152,7 +152,7 @@ export default function Monitoring() {
   }, [fetchData])
 
   return (
-    <div className="h-full overflow-y-auto p-4 md:p-6">
+    <div className="flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
       <div className="max-w-4xl mx-auto space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
