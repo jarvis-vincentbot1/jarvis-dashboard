@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { chatId, message, model } = await request.json()
+  const { chatId, message, model, attachments } = await request.json()
 
   if (!chatId || !message?.trim()) {
     return NextResponse.json({ error: 'chatId and message are required' }, { status: 400 })
@@ -86,7 +86,12 @@ export async function POST(request: Request) {
 
   // Save user message
   await prisma.message.create({
-    data: { chatId, role: 'user', content: message.trim() },
+    data: {
+      chatId,
+      role: 'user',
+      content: message.trim(),
+      ...(attachments?.length ? { attachments } : {}),
+    },
   })
 
   // Load last 20 messages from this chat
@@ -105,6 +110,16 @@ export async function POST(request: Request) {
   const selectedModel = model || 'anthropic/claude-sonnet-4-6'
 
   const systemPrompt = `You are Jarvis, a personal AI assistant. Be concise, direct, and helpful.`
+
+  // Build attachment context note if attachments were sent
+  interface AttachmentMeta { name: string; type: string; size: number; url: string }
+  const attachmentNote = attachments?.length
+    ? '\n\n[Attachments: ' +
+      (attachments as AttachmentMeta[])
+        .map((a) => `${a.name} (${a.type}, ${Math.round(a.size / 1024)}KB)`)
+        .join(', ') +
+      ']'
+    : ''
 
   // Stream via OpenClaw's OpenAI-compatible endpoint
   const encoder = new TextEncoder()
@@ -125,7 +140,12 @@ export async function POST(request: Request) {
             stream: true,
             messages: [
               { role: 'system', content: systemPrompt },
-              ...messages,
+              ...messages.slice(0, -1),
+              // Append attachment note to the last user message
+              {
+                ...messages[messages.length - 1],
+                content: (messages[messages.length - 1]?.content ?? '') + attachmentNote,
+              },
             ],
           }),
         })

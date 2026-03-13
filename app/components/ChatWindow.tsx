@@ -2,10 +2,18 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 
+interface Attachment {
+  url: string
+  name: string
+  type: string
+  size: number
+}
+
 interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
+  attachments?: Attachment[]
   createdAt: string
 }
 
@@ -26,6 +34,17 @@ interface ModelOption {
   description: string
 }
 
+interface PendingFile {
+  file: File
+  previewUrl: string
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)}KB`
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`
+}
+
 export default function ChatWindow({ chat, onDeleteChat }: Props) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -38,9 +57,17 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
   const [availableModels, setAvailableModels] = useState<ModelOption[]>([
     { id: 'anthropic/claude-sonnet-4-6', label: 'Claude Sonnet', provider: 'Anthropic', description: 'Fast & smart' },
   ])
+  const [pendingFiles, setPendingFiles] = useState<PendingFile[]>([])
+  const [isRecording, setIsRecording] = useState(false)
+  const [lightboxUrl, setLightboxUrl] = useState<string | null>(null)
+  const [uploadError, setUploadError] = useState<string | null>(null)
+
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
 
   // Load available models
   useEffect(() => {
@@ -59,6 +86,7 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
     setMessages([])
     setStreamingContent('')
     setLoading(true)
+    setPendingFiles([])
 
     fetch(`/api/chats/${chat.id}/messages`)
       .then((r) => r.json())
@@ -73,19 +101,103 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
     scrollToBottom()
   }, [messages, streamingContent, scrollToBottom])
 
+  // Clean up object URLs on unmount
+  useEffect(() => {
+    return () => {
+      pendingFiles.forEach(p => URL.revokeObjectURL(p.previewUrl))
+    }
+  }, [pendingFiles])
+
+  function addFiles(files: FileList | File[]) {
+    const arr = Array.from(files)
+    const newPending: PendingFile[] = arr.map(file => ({
+      file,
+      previewUrl: URL.createObjectURL(file),
+    }))
+    setPendingFiles(prev => [...prev, ...newPending])
+    setUploadError(null)
+  }
+
+  function removePendingFile(index: number) {
+    setPendingFiles(prev => {
+      URL.revokeObjectURL(prev[index].previewUrl)
+      return prev.filter((_, i) => i !== index)
+    })
+  }
+
+  async function startRecording() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      audioChunksRef.current = []
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+
+      recorder.onstop = () => {
+        stream.getTracks().forEach(t => t.stop())
+        const mimeType = recorder.mimeType || 'audio/webm'
+        const blob = new Blob(audioChunksRef.current, { type: mimeType })
+        const ext = mimeType.includes('ogg') ? 'ogg' : mimeType.includes('mp4') ? 'mp4' : 'webm'
+        const file = new File([blob], `recording-${Date.now()}.${ext}`, { type: mimeType })
+        addFiles([file])
+        setIsRecording(false)
+      }
+
+      recorder.start()
+      setIsRecording(true)
+    } catch {
+      setUploadError('Microphone access denied')
+    }
+  }
+
+  function stopRecording() {
+    mediaRecorderRef.current?.stop()
+  }
+
+  async function uploadFile(pf: PendingFile): Promise<Attachment> {
+    const fd = new FormData()
+    fd.append('file', pf.file)
+    const res = await fetch('/api/upload', { method: 'POST', body: fd })
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: 'Upload failed' }))
+      throw new Error(err.error || 'Upload failed')
+    }
+    return res.json() as Promise<Attachment>
+  }
+
   async function sendMessage() {
     const text = input.trim()
-    if (!text || streaming) return
+    if ((!text && pendingFiles.length === 0) || streaming) return
 
     setInput('')
     setStreaming(true)
     setStreamingContent('')
+    setUploadError(null)
+
+    // Upload files first
+    let attachments: Attachment[] = []
+    if (pendingFiles.length > 0) {
+      try {
+        attachments = await Promise.all(pendingFiles.map(uploadFile))
+      } catch (err) {
+        setUploadError(err instanceof Error ? err.message : 'Upload failed')
+        setStreaming(false)
+        return
+      }
+      // Clean up object URLs
+      pendingFiles.forEach(p => URL.revokeObjectURL(p.previewUrl))
+      setPendingFiles([])
+    }
 
     // Optimistically add user message
     const tempUserMsg: Message = {
       id: `temp-${Date.now()}`,
       role: 'user',
       content: text,
+      attachments: attachments.length ? attachments : undefined,
       createdAt: new Date().toISOString(),
     }
     setMessages((prev) => [...prev, tempUserMsg])
@@ -96,7 +208,12 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
       const res = await fetch('/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatId: chat.id, message: text, model: selectedModel }),
+        body: JSON.stringify({
+          chatId: chat.id,
+          message: text || '(see attachments)',
+          model: selectedModel,
+          attachments: attachments.length ? attachments : undefined,
+        }),
         signal: abortRef.current.signal,
       })
 
@@ -137,7 +254,6 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
           if (line.startsWith('data: ')) {
             const data = line.slice(6)
             if (data === '[DONE]') {
-              // Finalize
               const assistantMsg: Message = {
                 id: `temp-assistant-${Date.now()}`,
                 role: 'assistant',
@@ -146,7 +262,6 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
               }
               setMessages((prev) => [...prev, assistantMsg])
               setStreamingContent('')
-              // Reload messages to get real IDs
               fetch(`/api/chats/${chat.id}/messages`)
                 .then((r) => r.json())
                 .then((data) => {
@@ -206,8 +321,13 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
     }
   }
 
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault()
+    if (e.dataTransfer.files.length > 0) addFiles(e.dataTransfer.files)
+  }
+
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full" onDrop={handleDrop} onDragOver={(e) => e.preventDefault()}>
       {/* Top bar */}
       <div className="flex items-center justify-between px-4 md:px-6 h-14 border-b border-[#2a2a2a] flex-shrink-0">
         <div className="flex items-center gap-3">
@@ -296,24 +416,37 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
                 <span className="text-[#00ff88] text-xs font-bold">J</span>
               </div>
             )}
-            <div
-              className={`
-                max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-3 text-sm
-                ${msg.role === 'user'
-                  ? 'bg-[#00ff88] text-black font-medium rounded-br-sm'
-                  : 'bg-[#1f1f1f] text-gray-200 rounded-bl-sm border border-[#2a2a2a]'
-                }
-              `}
-            >
-              {msg.role === 'assistant' ? (
+            <div className={`max-w-[80%] md:max-w-[70%] flex flex-col gap-2 ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+              {/* Attachments */}
+              {msg.attachments && msg.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {msg.attachments.map((att, i) => (
+                    <AttachmentDisplay key={i} attachment={att} onImageClick={setLightboxUrl} />
+                  ))}
+                </div>
+              )}
+              {/* Text bubble */}
+              {msg.content && (
                 <div
-                  className="prose-jarvis"
-                  dangerouslySetInnerHTML={{
-                    __html: formatMessageHtml(msg.content),
-                  }}
-                />
-              ) : (
-                <span className="whitespace-pre-wrap">{msg.content}</span>
+                  className={`
+                    rounded-2xl px-4 py-3 text-sm
+                    ${msg.role === 'user'
+                      ? 'bg-[#00ff88] text-black font-medium rounded-br-sm'
+                      : 'bg-[#1f1f1f] text-gray-200 rounded-bl-sm border border-[#2a2a2a]'
+                    }
+                  `}
+                >
+                  {msg.role === 'assistant' ? (
+                    <div
+                      className="prose-jarvis"
+                      dangerouslySetInnerHTML={{
+                        __html: formatMessageHtml(msg.content),
+                      }}
+                    />
+                  ) : (
+                    <span className="whitespace-pre-wrap">{msg.content}</span>
+                  )}
+                </div>
               )}
             </div>
           </div>
@@ -347,9 +480,74 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input area */}
       <div className="px-4 md:px-6 py-4 border-t border-[#2a2a2a] flex-shrink-0">
-        <div className="flex gap-3 items-end">
+        {/* Pending attachment previews */}
+        {pendingFiles.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3">
+            {pendingFiles.map((pf, i) => (
+              <div key={i} className="relative group">
+                <PendingAttachmentPreview pf={pf} />
+                <button
+                  onClick={() => removePendingFile(i)}
+                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#333] border border-[#555] rounded-full text-gray-300 hover:bg-red-500 hover:text-white text-xs flex items-center justify-center transition-colors z-10"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {uploadError && (
+          <div className="mb-2 text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-1.5">
+            {uploadError}
+          </div>
+        )}
+
+        <div className="flex gap-2 items-end">
+          {/* Attachment toolbar */}
+          <div className="flex gap-1 flex-shrink-0 pb-1">
+            {/* File/image upload */}
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={streaming}
+              title="Attach file"
+              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#00ff88] hover:bg-[#1a1a1a] rounded-lg transition-colors disabled:opacity-40"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+              </svg>
+            </button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              accept="image/*,video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md"
+              className="hidden"
+              onChange={(e) => e.target.files && addFiles(e.target.files)}
+            />
+
+            {/* Audio recording */}
+            <button
+              onClick={isRecording ? stopRecording : startRecording}
+              disabled={streaming}
+              title={isRecording ? 'Stop recording' : 'Record audio'}
+              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${
+                isRecording
+                  ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20 animate-pulse'
+                  : 'text-gray-500 hover:text-[#00ff88] hover:bg-[#1a1a1a]'
+              }`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                <line x1="12" y1="19" x2="12" y2="23" />
+                <line x1="8" y1="23" x2="16" y2="23" />
+              </svg>
+            </button>
+          </div>
+
           <textarea
             ref={inputRef}
             value={input}
@@ -368,7 +566,7 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
           />
           <button
             onClick={sendMessage}
-            disabled={!input.trim() || streaming}
+            disabled={(!input.trim() && pendingFiles.length === 0) || streaming}
             className="w-12 h-12 bg-[#00ff88] text-black rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-[#00dd77] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {streaming ? (
@@ -382,8 +580,124 @@ export default function ChatWindow({ chat, onDeleteChat }: Props) {
           </button>
         </div>
         <div className="text-xs text-gray-700 mt-2 text-center">
-          Enter to send · Shift+Enter for new line
+          Enter to send · Shift+Enter for new line · Drag & drop files
         </div>
+      </div>
+
+      {/* Lightbox */}
+      {lightboxUrl && (
+        <div
+          className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setLightboxUrl(null)}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxUrl}
+            alt="Expanded view"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+          <button
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center bg-[#1a1a1a] border border-[#3a3a3a] rounded-full text-gray-300 hover:text-white hover:bg-[#2a2a2a] text-lg transition-colors"
+            onClick={() => setLightboxUrl(null)}
+          >
+            ×
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// --- Sub-components ---
+
+function AttachmentDisplay({ attachment, onImageClick }: { attachment: Attachment; onImageClick: (url: string) => void }) {
+  const isImage = attachment.type.startsWith('image/')
+  const isAudio = attachment.type.startsWith('audio/')
+  const isVideo = attachment.type.startsWith('video/')
+
+  if (isImage) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={attachment.url}
+        alt={attachment.name}
+        className="max-w-[240px] max-h-[180px] rounded-xl object-cover border border-[#2a2a2a] cursor-pointer hover:opacity-90 transition-opacity"
+        onClick={() => onImageClick(attachment.url)}
+      />
+    )
+  }
+
+  if (isAudio) {
+    return (
+      <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 flex flex-col gap-1.5 min-w-[220px]">
+        <div className="text-xs text-gray-500 truncate max-w-[200px]">{attachment.name}</div>
+        <audio controls src={attachment.url} className="h-8 w-full" style={{ colorScheme: 'dark' }} />
+      </div>
+    )
+  }
+
+  if (isVideo) {
+    return (
+      <video
+        src={attachment.url}
+        controls
+        className="max-w-[280px] max-h-[200px] rounded-xl border border-[#2a2a2a]"
+      />
+    )
+  }
+
+  // Generic file chip
+  return (
+    <a
+      href={attachment.url}
+      download={attachment.name}
+      className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-3 py-2 hover:border-[#00ff88]/40 transition-colors group"
+    >
+      <span className="text-xl">
+        {attachment.type.includes('pdf') ? '📄' :
+         attachment.type.includes('zip') ? '🗜️' :
+         attachment.type.includes('text') || attachment.name.endsWith('.txt') || attachment.name.endsWith('.md') ? '📝' :
+         '📎'}
+      </span>
+      <div className="min-w-0">
+        <div className="text-xs text-gray-300 truncate max-w-[140px] group-hover:text-[#00ff88] transition-colors">{attachment.name}</div>
+        <div className="text-[10px] text-gray-600">{formatBytes(attachment.size)}</div>
+      </div>
+    </a>
+  )
+}
+
+function PendingAttachmentPreview({ pf }: { pf: PendingFile }) {
+  const isImage = pf.file.type.startsWith('image/')
+  const isAudio = pf.file.type.startsWith('audio/')
+
+  if (isImage) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={pf.previewUrl}
+        alt={pf.file.name}
+        className="w-16 h-16 rounded-lg object-cover border border-[#2a2a2a]"
+      />
+    )
+  }
+
+  if (isAudio) {
+    return (
+      <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2">
+        <span className="text-[#00ff88] text-sm">🎤</span>
+        <span className="text-xs text-gray-400 max-w-[100px] truncate">{pf.file.name}</span>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-2 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-3 py-2">
+      <span className="text-sm">📎</span>
+      <div className="min-w-0">
+        <div className="text-xs text-gray-400 max-w-[100px] truncate">{pf.file.name}</div>
+        <div className="text-[10px] text-gray-600">{formatBytes(pf.file.size)}</div>
       </div>
     </div>
   )
