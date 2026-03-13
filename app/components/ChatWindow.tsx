@@ -500,136 +500,155 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
       </div>
 
       {/* Input area */}
-      <div className="px-4 md:px-6 py-4 border-t border-[#2a2a2a] flex-shrink-0">
-        {/* Pending attachment previews */}
-        {pendingFiles.length > 0 && (
-          <div className="flex flex-wrap gap-2 mb-3">
-            {pendingFiles.map((pf, i) => (
-              <div key={i} className="relative group">
-                <PendingAttachmentPreview pf={pf} />
-                <button
-                  onClick={() => removePendingFile(i)}
-                  className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#333] border border-[#555] rounded-full text-gray-300 hover:bg-red-500 hover:text-white text-xs flex items-center justify-center transition-colors z-10"
-                >
-                  ×
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
+      <div className="px-4 md:px-6 py-3 border-t border-[#2a2a2a] flex-shrink-0">
         {uploadError && (
           <div className="mb-2 text-xs text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-3 py-1.5">
             {uploadError}
           </div>
         )}
 
-        <div className="flex gap-2 items-end">
-          {/* Attachment toolbar */}
-          <div className="flex gap-1 flex-shrink-0 pb-1">
-            {/* Image upload */}
-            <button
-              onClick={() => imageInputRef.current?.click()}
-              disabled={streaming}
-              title="Attach image"
-              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#00ff88] hover:bg-[#1a1a1a] rounded-lg transition-colors disabled:opacity-40"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                <circle cx="8.5" cy="8.5" r="1.5" />
-                <polyline points="21 15 16 10 5 21" />
-              </svg>
-            </button>
-            <input
-              ref={imageInputRef}
-              type="file"
-              multiple
-              accept="image/*"
-              className="hidden"
-              onChange={(e) => e.target.files && addFiles(e.target.files)}
-            />
+        {/* Hidden file inputs */}
+        <input
+          ref={imageInputRef}
+          type="file"
+          multiple
+          accept="image/*"
+          className="hidden"
+          onChange={(e) => e.target.files && addFiles(e.target.files)}
+        />
+        <input
+          ref={fileInputRef}
+          type="file"
+          multiple
+          accept="video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md"
+          className="hidden"
+          onChange={(e) => e.target.files && addFiles(e.target.files)}
+        />
 
-            {/* File upload */}
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={streaming}
-              title="Attach file"
-              className="w-9 h-9 flex items-center justify-center text-gray-500 hover:text-[#00ff88] hover:bg-[#1a1a1a] rounded-lg transition-colors disabled:opacity-40"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
-            </button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              multiple
-              accept="video/*,audio/*,.pdf,.txt,.zip,.csv,.json,.md"
-              className="hidden"
-              onChange={(e) => e.target.files && addFiles(e.target.files)}
-            />
+        {/* Unified input container */}
+        <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-2xl transition-colors focus-within:border-[#00ff88]/40">
 
-            {/* Audio recording */}
-            <button
-              onClick={isRecording ? stopRecording : startRecording}
-              disabled={streaming}
-              title={isRecording ? 'Stop recording' : 'Record audio'}
-              className={`w-9 h-9 flex items-center justify-center rounded-lg transition-colors disabled:opacity-40 ${
-                isRecording
-                  ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20 animate-pulse'
-                  : 'text-gray-500 hover:text-[#00ff88] hover:bg-[#1a1a1a]'
-              }`}
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
-                <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
-                <line x1="12" y1="19" x2="12" y2="23" />
-                <line x1="8" y1="23" x2="16" y2="23" />
-              </svg>
-            </button>
-          </div>
+          {/* Pending file previews — inside the box */}
+          {pendingFiles.length > 0 && (
+            <div className="flex flex-wrap gap-2 px-4 pt-3">
+              {pendingFiles.map((pf, i) => (
+                <div key={i} className="relative group">
+                  <PendingAttachmentPreview pf={pf} />
+                  <button
+                    onClick={() => removePendingFile(i)}
+                    className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-[#2a2a2a] border border-[#444] rounded-full text-gray-400 hover:bg-red-500 hover:text-white text-xs flex items-center justify-center transition-colors z-10 shadow-sm"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
 
+          {/* Textarea */}
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={`Message ${chat.name}...`}
+            placeholder={isRecording ? '🔴 Recording audio — click Stop when done...' : `Message ${chat.name}...`}
             rows={1}
-            disabled={streaming}
-            className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl px-4 py-3 text-gray-100 placeholder-gray-600 focus:outline-none focus:border-[#00ff88] transition-colors resize-none max-h-32 text-sm disabled:opacity-50"
-            style={{ minHeight: '48px' }}
+            className="w-full bg-transparent px-4 pt-3 pb-2 text-gray-100 placeholder-gray-600 focus:outline-none resize-none max-h-32 text-sm"
+            style={{ minHeight: '44px' }}
             onInput={(e) => {
               const target = e.target as HTMLTextAreaElement
               target.style.height = 'auto'
               target.style.height = Math.min(target.scrollHeight, 128) + 'px'
             }}
           />
-          {streaming ? (
-            <button
-              onClick={() => abortRef.current?.abort()}
-              title="Stop generating"
-              className="w-12 h-12 bg-red-500 text-white rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-red-600 transition-colors"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="4" y="4" width="16" height="16" rx="2" />
-              </svg>
-            </button>
-          ) : (
-            <button
-              onClick={sendMessage}
-              disabled={!input.trim() && pendingFiles.length === 0}
-              className="w-12 h-12 bg-[#00ff88] text-black rounded-xl flex items-center justify-center flex-shrink-0 hover:bg-[#00dd77] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-                <line x1="22" y1="2" x2="11" y2="13" />
-                <polygon points="22 2 15 22 11 13 2 9 22 2" />
-              </svg>
-            </button>
-          )}
-        </div>
-        <div className="text-xs text-gray-700 mt-2 text-center">
-          Enter to send · Shift+Enter for new line · 🖼 Image · 📎 File · 🎤 Record · Drag & drop
+
+          {/* Bottom toolbar */}
+          <div className="flex items-center justify-between px-3 pb-3 pt-1">
+            {/* Left: attachment buttons */}
+            <div className="flex items-center gap-0.5">
+              {/* Image */}
+              <button
+                onClick={() => imageInputRef.current?.click()}
+                disabled={streaming}
+                title="Attach image"
+                className="flex items-center gap-1.5 h-8 px-2.5 text-gray-500 hover:text-[#00ff88] hover:bg-[#00ff88]/5 rounded-lg transition-colors disabled:opacity-40 text-xs font-medium"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  <circle cx="8.5" cy="8.5" r="1.5" />
+                  <polyline points="21 15 16 10 5 21" />
+                </svg>
+                <span className="hidden sm:inline">Image</span>
+              </button>
+
+              {/* File */}
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={streaming}
+                title="Attach file"
+                className="flex items-center gap-1.5 h-8 px-2.5 text-gray-500 hover:text-[#00ff88] hover:bg-[#00ff88]/5 rounded-lg transition-colors disabled:opacity-40 text-xs font-medium"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
+                </svg>
+                <span className="hidden sm:inline">File</span>
+              </button>
+
+              {/* Record */}
+              <button
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={streaming}
+                title={isRecording ? 'Stop recording' : 'Record audio'}
+                className={`flex items-center gap-1.5 h-8 px-2.5 rounded-lg transition-colors disabled:opacity-40 text-xs font-medium ${
+                  isRecording
+                    ? 'text-red-400 bg-red-400/10 hover:bg-red-400/20'
+                    : 'text-gray-500 hover:text-[#00ff88] hover:bg-[#00ff88]/5'
+                }`}
+              >
+                {isRecording ? (
+                  <>
+                    <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse flex-shrink-0" />
+                    <span className="hidden sm:inline">Stop</span>
+                  </>
+                ) : (
+                  <>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z" />
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2" />
+                      <line x1="12" y1="19" x2="12" y2="23" />
+                      <line x1="8" y1="23" x2="16" y2="23" />
+                    </svg>
+                    <span className="hidden sm:inline">Record</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Right: Send / Stop */}
+            {streaming ? (
+              <button
+                onClick={() => abortRef.current?.abort()}
+                title="Stop generating"
+                className="flex items-center gap-1.5 h-8 px-3 bg-red-500/10 text-red-400 border border-red-500/20 rounded-xl hover:bg-red-500/20 transition-colors text-xs font-semibold"
+              >
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor">
+                  <rect x="4" y="4" width="16" height="16" rx="2" />
+                </svg>
+                Stop
+              </button>
+            ) : (
+              <button
+                onClick={sendMessage}
+                disabled={!input.trim() && pendingFiles.length === 0}
+                className="w-8 h-8 bg-[#00ff88] text-black rounded-xl flex items-center justify-center hover:bg-[#00dd77] disabled:opacity-30 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+              >
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                  <line x1="22" y1="2" x2="11" y2="13" />
+                  <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                </svg>
+              </button>
+            )}
+          </div>
         </div>
       </div>
 
