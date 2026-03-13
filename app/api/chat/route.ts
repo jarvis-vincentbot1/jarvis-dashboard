@@ -8,18 +8,37 @@ const OPENCLAW_TOKEN = process.env.OPENCLAW_TOKEN || ''
 // Available models exposed to the UI (not exported from route — fetched via GET)
 const AVAILABLE_MODELS = [
   {
+    id: 'ollama/qwen2.5:7b',
+    label: 'Qwen 2.5 (local)',
+    provider: 'Ollama',
+    description: '⚡ Default — fast, local, free & private',
+    default: true,
+  },
+  {
     id: 'anthropic/claude-sonnet-4-6',
     label: 'Claude Sonnet',
     provider: 'Anthropic',
-    description: 'Fast, smart, great for most tasks',
+    description: '🧠 Premium — complex reasoning, code, long docs',
   },
   {
     id: 'ollama/minimax-m2.5:cloud',
     label: 'MiniMax M2.5',
-    provider: 'Ollama (local)',
-    description: 'Local model, free & private',
+    provider: 'Ollama',
+    description: 'Local cloud model',
   },
 ]
+
+// Auto-routing: detect if a message needs Claude or if Ollama is fine
+function shouldEscalateToClaude(message: string, history: Array<{role: string; content: string}>): boolean {
+  const lower = message.toLowerCase()
+  // Explicit escalation triggers
+  if (/\b(complex|detailed analysis|write a full|architect|refactor|review my code|debug|explain.*deeply|research|compare.*pros.*cons)\b/.test(lower)) return true
+  // Long messages (likely complex task)
+  if (message.length > 500) return true
+  // Code blocks in history = probably technical
+  if (history.some(m => m.content.includes('```'))) return true
+  return false
+}
 
 async function requireAuth() {
   const session = await getSession()
@@ -162,7 +181,13 @@ export async function POST(request: Request) {
     take: 20,
   })
 
-  const selectedModel = model || 'anthropic/claude-sonnet-4-6'
+  // Default to local Ollama; auto-escalate to Claude if task warrants it
+  const baseModel = model || 'ollama/qwen2.5:7b'
+  const historyForRouting = (await prisma.message.findMany({ where: { chatId }, orderBy: { createdAt: 'desc' }, take: 5 }))
+    .map(m => ({ role: m.role, content: m.content }))
+  const selectedModel = (!model && shouldEscalateToClaude(trimmed, historyForRouting))
+    ? 'anthropic/claude-sonnet-4-6'
+    : baseModel
   const systemPrompt = `You are Jarvis, a personal AI assistant. Be concise, direct, and helpful.`
 
   // Build messages array for AI
