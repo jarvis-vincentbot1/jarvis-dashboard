@@ -1,103 +1,143 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 
+const ZABBIX_URL = 'http://212.192.243.78:8090/api_jsonrpc.php'
+const ZABBIX_USER = 'Admin'
+const ZABBIX_PASS = 'GameCreators@2026!'
+
+// Zabbix host IDs
 const HOSTS = [
-  { name: 'VPS (212.192.243.78)', base: 'http://212.192.243.78:19999/api/v1' },
-  { name: 'Mac mini', base: 'http://100.116.130.111:19999/api/v1' },
+  { hostid: '10681', name: 'VPS (gamecreators.io)', icon: '🖥' },
+  { hostid: '10680', name: 'Mac mini', icon: '💻' },
 ]
 
-async function fetchNetdata(base: string, path: string): Promise<unknown> {
-  const res = await fetch(`${base}${path}`, { signal: AbortSignal.timeout(5000) })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
+let authToken: string | null = null
+let authExpiry = 0
+
+async function zabbixRequest(method: string, params: unknown, auth?: string) {
+  const body: Record<string, unknown> = {
+    jsonrpc: '2.0',
+    method,
+    params,
+    id: 1,
+  }
+  if (auth) body.auth = auth
+
+  const res = await fetch(ZABBIX_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(5000),
+  })
+  const data = await res.json()
+  if (data.error) throw new Error(data.error.data || data.error.message)
+  return data.result
 }
 
-function extractLatestValue(data: unknown): number {
-  // Netdata /api/v1/data returns { data: [[timestamp, val1, val2, ...]], ... }
-  const d = data as { data?: number[][] }
-  return d?.data?.[0]?.[1] ?? 0
+async function getAuth(): Promise<string> {
+  if (authToken && Date.now() < authExpiry) return authToken
+  authToken = await zabbixRequest('user.login', {
+    username: ZABBIX_USER,
+    password: ZABBIX_PASS,
+  })
+  authExpiry = Date.now() + 25 * 60 * 1000 // 25 min
+  return authToken as string
+}
+
+function bytesToGB(bytes: number): number {
+  return Math.round((bytes / (1024 ** 3)) * 10) / 10
 }
 
 function formatUptime(seconds: number): string {
   if (seconds < 60) return `${Math.floor(seconds)}s`
   if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
-  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h`
-  return `${Math.floor(seconds / 86400)} days`
+  if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`
+  const d = Math.floor(seconds / 86400)
+  const h = Math.floor((seconds % 86400) / 3600)
+  return `${d}d ${h}h`
 }
 
-async function fetchHostMetrics(host: { name: string; base: string }) {
+async function fetchHostMetrics(host: { hostid: string; name: string; icon: string }, auth: string) {
   try {
-    const [cpuData, ramData, diskData, uptimeData] = await Promise.all([
-      fetchNetdata(host.base, '/data?chart=system.cpu&points=1&after=-1'),
-      fetchNetdata(host.base, '/data?chart=system.ram&points=1&after=-1'),
-      fetchNetdata(host.base, '/data?chart=disk_space./&points=1&after=-1'),
-      fetchNetdata(host.base, '/data?chart=system.uptime&points=1&after=-1'),
-    ])
+    // Fetch all relevant items for this host in one call
+    const items = await zabbixRequest('item.get', {
+      hostids: [host.hostid],
+      output: ['itemid', 'key_', 'lastvalue', 'lastclock', 'units'],
+      search: { key_: '' },
+      searchByAny: true,
+      filter: {
+        key_: [
+          'system.cpu.util',
+          'system.cpu.util[,user]',
+          'system.cpu.util[,system]',
+          'system.cpu.util[,nice]',
+          'system.cpu.util[,iowait]',
+          'system.cpu.util[,interrupt]',
+          'system.cpu.util[,softirq]',
+          'system.cpu.util[,steal]',
+          'vm.memory.size[available]',
+          'vm.memory.size[total]',
+          'vfs.fs.size[/,used]',
+          'vfs.fs.size[/,total]',
+          'system.uptime',
+        ],
+      },
+    }, auth) as Array<{ key_: string; lastvalue: string; lastclock: string }>
 
-    // CPU: Netdata v2 reports usage directly (no idle dimension) — sum all values
-    const cpuRaw = cpuData as { data?: number[][], labels?: string[] }
+    // Build a key→value lookup
+    const kv: Record<string, number> = {}
+    for (const item of items) {
+      const val = parseFloat(item.lastvalue)
+      if (!isNaN(val)) kv[item.key_] = val
+    }
+
+    // Determine if we got any data at all
+    const hasData = Object.keys(kv).length > 0
+
+    // CPU: prefer single util key, else sum individual modes
     let cpu = 0
-    if (cpuRaw?.data?.[0]) {
-      const vals = cpuRaw.data[0].slice(1) // skip timestamp
-      cpu = Math.min(100, Math.round(vals.reduce((a, b) => a + Math.abs(b), 0) * 10) / 10)
-    }
-
-    // RAM: Linux has free/used/cached/buffers, macOS has active/wired/compressor/inactive/etc
-    const ramRaw = ramData as { data?: number[][], labels?: string[] }
-    let ramUsed = 0, ramTotal = 0
-    if (ramRaw?.data?.[0] && ramRaw?.labels) {
-      const vals = ramRaw.data[0].slice(1)
-      const dims = ramRaw.labels.slice(1)
-      const get = (name: string) => { const i = dims.indexOf(name); return i >= 0 ? Math.abs(vals[i]) : 0 }
-      const isLinux = dims.includes('used') && dims.includes('free')
-      if (isLinux) {
-        const used = get('used'), free = get('free'), cached = get('cached'), buffers = get('buffers')
-        ramTotal = Math.round((used + free + cached + buffers) / 1024 * 10) / 10
-        ramUsed = Math.round(used / 1024 * 10) / 10
-      } else {
-        // macOS: used = active + wired + compressor (excluding inactive/free/purgeable)
-        const active = get('active'), wired = get('wired'), compressor = get('compressor')
-        const inactive = get('inactive'), free = get('free'), purgeable = get('purgeable')
-        const speculative = get('speculative')
-        ramTotal = Math.round((active + wired + compressor + inactive + free + purgeable + speculative) / 1024 * 10) / 10
-        ramUsed = Math.round((active + wired + compressor) / 1024 * 10) / 10
+    if (kv['system.cpu.util'] !== undefined) {
+      cpu = Math.round(kv['system.cpu.util'] * 10) / 10
+    } else {
+      const modes = ['user', 'system', 'nice', 'iowait', 'interrupt', 'softirq', 'steal']
+      for (const m of modes) {
+        const v = kv[`system.cpu.util[,${m}]`]
+        if (v !== undefined) cpu += v
       }
+      cpu = Math.round(cpu * 10) / 10
     }
-    const ramPercent = ramTotal > 0 ? Math.round((ramUsed / ramTotal) * 1000) / 10 : 0
 
-    // Disk: labels are avail,used,reserved for root (in GiB)
-    const diskRaw = diskData as { data?: number[][], labels?: string[] }
-    let diskUsed = 0, diskTotal = 0
-    if (diskRaw?.data?.[0] && diskRaw?.labels) {
-      const vals = diskRaw.data[0].slice(1)
-      const dims = diskRaw.labels.slice(1) // skip 'time'
-      const get = (name: string) => {
-        const i = dims.indexOf(name)
-        return i >= 0 ? Math.abs(vals[i]) : 0
-      }
-      // Values are in GiB
-      const used = get('used')
-      const avail = get('avail')
-      const reserved = get('reserved for root')
-      diskTotal = Math.round((used + avail + reserved) * 10) / 10
-      diskUsed = Math.round(used * 10) / 10
-    }
-    const diskPercent = diskTotal > 0 ? Math.round((diskUsed / diskTotal) * 1000) / 10 : 0
+    // RAM
+    const ramAvail = kv['vm.memory.size[available]'] ?? 0
+    const ramTotal = kv['vm.memory.size[total]'] ?? 0
+    const ramUsed = ramTotal - ramAvail
+    const ramUsedGB = bytesToGB(ramUsed)
+    const ramTotalGB = bytesToGB(ramTotal)
+    const ramPercent = ramTotalGB > 0 ? Math.round((ramUsedGB / ramTotalGB) * 1000) / 10 : 0
 
-    const uptimeRaw = uptimeData as { data?: number[][] }
-    const uptime = formatUptime(uptimeRaw?.data?.[0]?.[1] ?? 0)
+    // Disk
+    const diskUsedBytes = kv['vfs.fs.size[/,used]'] ?? 0
+    const diskTotalBytes = kv['vfs.fs.size[/,total]'] ?? 0
+    const diskUsedGB = bytesToGB(diskUsedBytes)
+    const diskTotalGB = bytesToGB(diskTotalBytes)
+    const diskPercent = diskTotalGB > 0 ? Math.round((diskUsedGB / diskTotalGB) * 1000) / 10 : 0
+
+    // Uptime
+    const uptime = formatUptime(kv['system.uptime'] ?? 0)
 
     return {
       name: host.name,
-      online: true,
+      icon: host.icon,
+      online: hasData,
       cpu,
-      ram: { used: ramUsed, total: ramTotal, percent: ramPercent },
-      disk: { used: diskUsed, total: diskTotal, percent: diskPercent },
+      ram: { used: ramUsedGB, total: ramTotalGB, percent: ramPercent },
+      disk: { used: diskUsedGB, total: diskTotalGB, percent: diskPercent },
       uptime,
     }
   } catch {
     return {
       name: host.name,
+      icon: host.icon,
       online: false,
       cpu: 0,
       ram: { used: 0, total: 0, percent: 0 },
@@ -113,6 +153,14 @@ export async function GET() {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const hosts = await Promise.all(HOSTS.map(fetchHostMetrics))
-  return NextResponse.json({ hosts })
+  try {
+    const auth = await getAuth()
+    const hosts = await Promise.all(HOSTS.map((h) => fetchHostMetrics(h, auth)))
+    return NextResponse.json({ hosts, source: 'zabbix' })
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Zabbix unreachable' },
+      { status: 503 }
+    )
+  }
 }

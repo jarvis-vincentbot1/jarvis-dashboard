@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 
 interface HostMetrics {
   name: string
+  icon?: string
   online: boolean
   cpu: number
   ram: { used: number; total: number; percent: number }
@@ -13,6 +14,7 @@ interface HostMetrics {
 
 interface MonitoringData {
   hosts: HostMetrics[]
+  source?: string
 }
 
 function BarMeter({
@@ -77,7 +79,7 @@ function HostCard({ host }: { host: HostMetrics }) {
     <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-5 space-y-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <span className="text-gray-200 font-semibold text-sm">🖥 {host.name}</span>
+          <span className="text-gray-200 font-semibold text-sm">{host.icon ?? '🖥'} {host.name}</span>
         </div>
         <div className="flex items-center gap-1.5">
           <div
@@ -155,7 +157,10 @@ export default function Monitoring() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-lg font-semibold text-gray-200">System Monitoring</h1>
+            <div className="flex items-center gap-2">
+              <h1 className="text-lg font-semibold text-gray-200">System Monitoring</h1>
+              <span className="text-[10px] text-gray-600 border border-[#2a2a2a] rounded px-1.5 py-0.5">Zabbix</span>
+            </div>
             {lastUpdated && (
               <p className="text-xs text-gray-500 mt-0.5">
                 Updated {lastUpdated.toLocaleTimeString()} · auto-refresh 30s
