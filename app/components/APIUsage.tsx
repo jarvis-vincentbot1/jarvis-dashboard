@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -9,79 +9,30 @@ type Timeframe = 'daily' | 'weekly' | 'monthly'
 interface DailyUsage {
   date: string // YYYY-MM-DD
   engines: Record<string, { inputTokens: number; outputTokens: number; cost: number }>
+  totalCost: number
 }
 
-// ── Demo Data ─────────────────────────────────────────────────────────────────
-// Replace with real log parsing from ~/Library/Logs/openclaw/ or openclaw sessions
+interface UsageResponse {
+  start_date: string
+  end_date: string
+  input_tokens: number
+  output_tokens: number
+  total_tokens: number
+  cost_usd: number
+  daily: DailyUsage[]
+  engines: Record<string, { cost: number; inputTokens: number; outputTokens: number }>
+  cached_at: string
+}
+
+// ── Engine Config ─────────────────────────────────────────────────────────────
 
 const ENGINES: { id: string; label: string; color: string; inputRate: number; outputRate: number }[] = [
-  { id: 'claude-haiku',    label: 'Claude Haiku',   color: '#00ff88', inputRate: 0.00025,  outputRate: 0.00125 },
-  { id: 'claude-sonnet',   label: 'Claude Sonnet',  color: '#00d4ff', inputRate: 0.003,    outputRate: 0.015   },
-  { id: 'claude-opus',     label: 'Claude Opus',    color: '#a855f7', inputRate: 0.015,    outputRate: 0.075   },
-  { id: 'gpt-4o-mini',     label: 'GPT-4o mini',    color: '#f59e0b', inputRate: 0.00015,  outputRate: 0.0006  },
-  { id: 'gpt-4o',          label: 'GPT-4o',         color: '#ef4444', inputRate: 0.0025,   outputRate: 0.01    },
+  { id: 'claude-haiku',    label: 'Claude Haiku',   color: '#00ff88', inputRate: 0.80,   outputRate: 4.00   },
+  { id: 'claude-sonnet',   label: 'Claude Sonnet',  color: '#00d4ff', inputRate: 3.00,   outputRate: 15.00  },
+  { id: 'claude-opus',     label: 'Claude Opus',    color: '#a855f7', inputRate: 15.00,  outputRate: 75.00  },
 ]
 
-function seedRandom(seed: number) {
-  let s = seed
-  return () => {
-    s = (s * 1664525 + 1013904223) & 0xffffffff
-    return (s >>> 0) / 0xffffffff
-  }
-}
-
-function generateDemoData(): DailyUsage[] {
-  const days: DailyUsage[] = []
-  const today = new Date('2026-03-15')
-
-  for (let i = 29; i >= 0; i--) {
-    const d = new Date(today)
-    d.setDate(d.getDate() - i)
-    const date = d.toISOString().slice(0, 10)
-    const rand = seedRandom(i * 7 + 42)
-
-    const engines: DailyUsage['engines'] = {}
-    // Haiku is used heavily every day
-    const haikuIn = Math.floor(rand() * 180_000 + 40_000)
-    const haikuOut = Math.floor(rand() * 45_000 + 10_000)
-    engines['claude-haiku'] = { inputTokens: haikuIn, outputTokens: haikuOut, cost: haikuIn * 0.00025 / 1000 + haikuOut * 0.00125 / 1000 }
-
-    // Sonnet used 4-5x/week
-    if (rand() > 0.3) {
-      const sIn = Math.floor(rand() * 60_000 + 10_000)
-      const sOut = Math.floor(rand() * 20_000 + 4_000)
-      engines['claude-sonnet'] = { inputTokens: sIn, outputTokens: sOut, cost: sIn * 0.003 / 1000 + sOut * 0.015 / 1000 }
-    }
-
-    // Opus used occasionally
-    if (rand() > 0.75) {
-      const oIn = Math.floor(rand() * 15_000 + 3_000)
-      const oOut = Math.floor(rand() * 5_000 + 1_000)
-      engines['claude-opus'] = { inputTokens: oIn, outputTokens: oOut, cost: oIn * 0.015 / 1000 + oOut * 0.075 / 1000 }
-    }
-
-    // GPT-4o mini used on some days
-    if (rand() > 0.45) {
-      const gIn = Math.floor(rand() * 90_000 + 20_000)
-      const gOut = Math.floor(rand() * 30_000 + 6_000)
-      engines['gpt-4o-mini'] = { inputTokens: gIn, outputTokens: gOut, cost: gIn * 0.00015 / 1000 + gOut * 0.0006 / 1000 }
-    }
-
-    // GPT-4o used rarely
-    if (rand() > 0.8) {
-      const g4In = Math.floor(rand() * 20_000 + 4_000)
-      const g4Out = Math.floor(rand() * 8_000 + 2_000)
-      engines['gpt-4o'] = { inputTokens: g4In, outputTokens: g4Out, cost: g4In * 0.0025 / 1000 + g4Out * 0.01 / 1000 }
-    }
-
-    days.push({ date, engines })
-  }
-  return days
-}
-
-const DEMO_DATA = generateDemoData()
-
-// ── Aggregation helpers ────────────────────────────────────────────────────────
+// ── Helper Functions ──────────────────────────────────────────────────────────
 
 function formatDate(date: string) {
   const d = new Date(date + 'T00:00:00')
@@ -98,6 +49,12 @@ function getWeekKey(date: string) {
 
 function getMonthKey(date: string) {
   return date.slice(0, 7)
+}
+
+function fmtTokens(n: number) {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
+  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
+  return String(n)
 }
 
 interface BucketEntry {
@@ -140,7 +97,10 @@ function aggregateData(data: DailyUsage[], timeframe: Timeframe): BucketEntry[] 
     }
   }
 
-  return Object.values(buckets)
+  return Object.values(buckets).sort((a, b) => {
+    // Sort by date embedded in label (first date always comes first in our format)
+    return a.label.localeCompare(b.label)
+  })
 }
 
 // ── Icons ─────────────────────────────────────────────────────────────────────
@@ -223,38 +183,48 @@ function BarChart({ buckets, timeframe }: { buckets: BucketEntry[]; timeframe: T
 
 export default function APIUsage() {
   const [timeframe, setTimeframe] = useState<Timeframe>('daily')
+  const [data, setData] = useState<UsageResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
 
-  const buckets = useMemo(() => aggregateData(DEMO_DATA, timeframe), [timeframe])
+  // Fetch usage data
+  const fetchUsageData = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/usage')
+      if (!res.ok) {
+        throw new Error(`API error: ${res.status}`)
+      }
+      const result = await res.json()
+      setData(result)
+      setLastRefresh(new Date())
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch usage data')
+      console.error('Usage fetch error:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Fetch on mount and set up 30-second refresh
+  useEffect(() => {
+    fetchUsageData()
+    const interval = setInterval(fetchUsageData, 30000) // 30 seconds
+    return () => clearInterval(interval)
+  }, [])
+
+  const buckets = useMemo(() => {
+    if (!data?.daily) return []
+    return aggregateData(data.daily, timeframe)
+  }, [data, timeframe])
 
   const totalSpend = useMemo(() => buckets.reduce((s, b) => s + b.totalCost, 0), [buckets])
-  const totalInput = useMemo(() => {
-    return DEMO_DATA.reduce((s, d) => s + Object.values(d.engines).reduce((x, e) => x + e.inputTokens, 0), 0)
-  }, [])
-  const totalOutput = useMemo(() => {
-    return DEMO_DATA.reduce((s, d) => s + Object.values(d.engines).reduce((x, e) => x + e.outputTokens, 0), 0)
-  }, [])
-
-  // Per-engine totals across the whole period
-  const engineTotals = useMemo(() => {
-    const totals: Record<string, { cost: number; inputTokens: number; outputTokens: number }> = {}
-    for (const day of DEMO_DATA) {
-      for (const [id, usage] of Object.entries(day.engines)) {
-        if (!totals[id]) totals[id] = { cost: 0, inputTokens: 0, outputTokens: 0 }
-        totals[id].cost += usage.cost
-        totals[id].inputTokens += usage.inputTokens
-        totals[id].outputTokens += usage.outputTokens
-      }
-    }
-    return totals
-  }, [])
-
-  const grandTotal = Object.values(engineTotals).reduce((s, e) => s + e.cost, 0)
-
-  function fmtTokens(n: number) {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`
-    if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`
-    return String(n)
-  }
+  const totalInput = useMemo(() => data?.input_tokens ?? 0, [data])
+  const totalOutput = useMemo(() => data?.output_tokens ?? 0, [data])
+  const engineTotals = useMemo(() => data?.engines ?? {}, [data])
+  const grandTotal = useMemo(() => data?.cost_usd ?? 0, [data])
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
@@ -266,7 +236,11 @@ export default function APIUsage() {
           </div>
           <div>
             <h1 className="text-white font-semibold text-lg leading-tight">API Usage</h1>
-            <p className="text-gray-500 text-xs">30-day window · demo data</p>
+            <p className="text-gray-500 text-xs">
+              30-day window · Live tracking
+              {lastRefresh && <span> · Updated {lastRefresh.toLocaleTimeString()}</span>}
+              {loading && <span className="animate-pulse"> · Refreshing...</span>}
+            </p>
           </div>
         </div>
 
@@ -360,13 +334,28 @@ export default function APIUsage() {
         </div>
       </div>
 
-      {/* Integration note */}
-      <div className="bg-[#141414] border border-[#00ff88]/10 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
-        <span className="text-[#00ff88] font-medium">Integration:</span>{' '}
-        Replace <code className="bg-white/5 px-1 rounded text-gray-400">DEMO_DATA</code> with a fetch to an API route that parses{' '}
-        <code className="bg-white/5 px-1 rounded text-gray-400">~/Library/Logs/openclaw/</code> or runs{' '}
-        <code className="bg-white/5 px-1 rounded text-gray-400">openclaw sessions list --json</code> and extracts token usage from each session&apos;s <code className="bg-white/5 px-1 rounded text-gray-400">session_status</code> output.
-      </div>
+      {/* Error state */}
+      {error && (
+        <div className="bg-[#141414] border border-red-500/30 rounded-xl p-4 text-sm text-red-400">
+          <span className="font-medium">Error:</span> {error}
+        </div>
+      )}
+
+      {/* Loading state */}
+      {loading && !data && (
+        <div className="bg-[#141414] border border-white/5 rounded-xl p-8 text-center text-gray-500">
+          <div className="animate-pulse">Loading usage data...</div>
+        </div>
+      )}
+
+      {/* Live status note */}
+      {data && !error && (
+        <div className="bg-[#141414] border border-[#00ff88]/10 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
+          <span className="text-[#00ff88] font-medium">Live Tracking:</span>{' '}
+          Data refreshes every 30 seconds from Anthropic API. Range: {data.start_date} to {data.end_date}.
+          Last updated: {lastRefresh?.toLocaleTimeString() || 'loading...'}
+        </div>
+      )}
     </div>
   )
 }

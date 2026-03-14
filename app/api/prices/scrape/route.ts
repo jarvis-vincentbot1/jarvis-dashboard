@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     let saved = 0
     for (const e of body.entries) {
       if (!e.retailer || !e.price || e.price < 10) continue
-      if (product.maxPrice && e.price > product.maxPrice) continue
+      if (product?.maxPrice && e.price > product.maxPrice) continue
       await prisma.priceEntry.create({
         data: {
           productId,

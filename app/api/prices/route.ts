@@ -23,8 +23,6 @@ export async function GET() {
     id: product.id,
     name: product.name,
     category: product.category,
-    searchQuery: product.searchQuery,
-    maxPrice: product.maxPrice,
     entries: [...product.prices].sort((a, b) => a.price - b.price),
   }))
 
