@@ -1,27 +1,6 @@
-#!/usr/bin/env node
-// Periodically triggers price scraping for all active products
-import { setTimeout as sleep } from 'timers/promises'
+// Price scrape cron — DISABLED on VPS
+// Scraping is handled by the Mac mini Playwright scraper (scraper/scrape.mjs)
+// which posts prices directly to /api/prices/scrape every 30 min via launchd.
+// The VPS-side fetch-scraper returned 0 results on all sites due to bot protection.
 
-const INTERVAL_MS = 6 * 60 * 60 * 1000 // 6 hours
-const CRON_SECRET = process.env.CRON_SECRET ?? 'jarvis-cron'
-const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
-
-console.log(`[Cron] Price scraper cron started. Interval: ${INTERVAL_MS / 3600000}h`)
-
-// Wait for the server to start before first run
-await sleep(30000)
-
-while (true) {
-  try {
-    console.log('[Cron] Triggering price scrape...')
-    const res = await fetch(`${BASE_URL}/api/prices/scrape`, {
-      method: 'POST',
-      headers: { 'x-cron-secret': CRON_SECRET, 'content-type': 'application/json' },
-      body: '{}',
-    })
-    console.log(`[Cron] Scrape triggered: ${res.status}`)
-  } catch (e) {
-    console.error('[Cron] Error:', e.message)
-  }
-  await sleep(INTERVAL_MS)
-}
+console.log('[Cron] VPS internal scraper disabled. Mac mini handles price scraping.')
