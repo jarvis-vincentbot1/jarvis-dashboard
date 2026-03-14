@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 
 interface Chat {
   id: string
@@ -534,7 +534,7 @@ function RecentChats({ allChats, onOpenChat }: { allChats: Chat[]; onOpenChat: (
 // ── Current model badge ───────────────────────────────────────────────────────
 
 function ModelBadge() {
-  const [models, setModels] = useState<Array<{ id: string; label: string; default?: boolean }> | null>(null)
+  const [models, setModels] = useState<Array<{ id: string; label: string; provider?: string; default?: boolean }> | null>(null)
 
   useEffect(() => {
     fetch('/api/chat')
@@ -559,10 +559,6 @@ function ModelBadge() {
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) {
-  const refresh = useCallback(() => {}, [])
-
-  // Refresh all widgets when dashboard becomes active
-  useEffect(() => { refresh() }, [refresh])
 
   return (
     <div className="min-h-full bg-[#0f0f0f]">

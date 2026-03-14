@@ -50,7 +50,7 @@ interface ProductInfo {
   id: string
   name: string
   searchQuery: string
-  maxPrice?: number | null
+  maxPrice: number | null | undefined
 }
 
 // ── GPUTracker.eu ─────────────────────────────────────────────────────────────
