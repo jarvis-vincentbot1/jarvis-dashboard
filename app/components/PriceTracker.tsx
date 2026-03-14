@@ -362,7 +362,7 @@ interface Retailer {
 }
 
 const EU_RETAILERS: Retailer[] = [
-  // NL direct
+  // 🇳🇱 Nederland
   { name: 'Coolblue', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.coolblue.nl/en/video-cards/nvidia-chipset/nvidia-geforce-rtx-5090', note: 'Voor 23:59 besteld, morgen in huis' },
   { name: 'Alternate NL', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.alternate.nl/Grafische-kaarten/NVIDIA-grafische-kaarten/RTX-5090' },
   { name: 'Azerty', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://azerty.nl/componenten/videokaarten/nvidia/geforce-rtx-5090' },
@@ -370,15 +370,29 @@ const EU_RETAILERS: Retailer[] = [
   { name: 'Megekko', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.megekko.nl/search?q=RTX+5090' },
   { name: 'Proshop NL', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.proshop.nl/NVIDIA-GeForce-RTX-50-Series' },
   { name: 'MediaMarkt NL', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.mediamarkt.nl/nl/search.html?query=RTX+5090' },
-  // DE → ships NL
+  // 🇩🇪 Duitsland → verzendt naar NL
   { name: 'Alternate DE', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.alternate.de/Grafikkarten/NVIDIA-Grafikkarten/RTX-5090', note: 'Gratis verzending naar NL' },
   { name: 'Mindfactory', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/GeForce+RTX+fuer+Gaming/RTX+5090.html' },
   { name: 'Caseking', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.caseking.de/en/pc-components/graphics-cards/nvidia/rtx-5000/geforce-rtx-5090' },
-  // Trackers/comparators
-  { name: 'GPUTracker EU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://www.gputracker.eu/en/search/category/1/graphics-cards/facet/2/graphics-chip/nvidia-rtx-5090', note: 'Alle EU retailers' },
-  { name: 'NowInStock NL', country: 'NL', flag: '🇳🇱', type: 'tracker', url: 'https://www.nowinstock.net/nl/computers/videocards/nvidia/rtx5090/', note: 'Stock alerts' },
+  { name: 'Cyberport', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.cyberport.de/computer-hardware/grafikkarte/nvidia/?q=RTX+5090' },
+  { name: 'Computeruniverse', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.computeruniverse.net/en/c/graphics-cards?q=RTX+5090' },
+  { name: 'Proshop DE', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.proshop.de/?search=RTX+5090' },
+  { name: 'Amazon DE', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.amazon.de/s?k=RTX+5090' },
+  // 🇧🇪 België
+  { name: 'Alternate BE', country: 'BE', flag: '🇧🇪', type: 'shop', url: 'https://www.alternate.be/Grafische-kaarten/NVIDIA-grafische-kaarten/RTX-5090' },
+  { name: 'Azerty BE', country: 'BE', flag: '🇧🇪', type: 'shop', url: 'https://azerty.be/componenten/videokaarten/nvidia/geforce-rtx-5090' },
+  // 🇫🇷 Frankrijk
+  { name: 'LDLC', country: 'FR', flag: '🇫🇷', type: 'shop', url: 'https://www.ldlc.com/informatique/pieces-informatique/carte-graphique-interne/c4684/+fxf-fc3p+fv1028-5090.html', note: 'Grote Franse retailer' },
+  { name: 'Amazon FR', country: 'FR', flag: '🇫🇷', type: 'shop', url: 'https://www.amazon.fr/s?k=RTX+5090' },
+  // 🇬🇧 UK (let op: buiten EU, evt. douane)
+  { name: 'Scan UK', country: 'GB', flag: '🇬🇧', type: 'shop', url: 'https://www.scan.co.uk/search?q=RTX+5090', note: 'Let op: buiten EU' },
+  { name: 'Overclockers UK', country: 'GB', flag: '🇬🇧', type: 'shop', url: 'https://www.overclockers.co.uk/pc-components/graphics-cards/nvidia-graphics-cards/nvidia-geforce-rtx-5090-graphics-cards', note: 'Let op: buiten EU' },
+  // 🌍 Prijsvergelijkers & stock trackers
+  { name: 'GPUTracker EU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://www.gputracker.eu/en/search/category/1/graphics-cards/facet/2/graphics-chip/nvidia-rtx-5090', note: 'Alle EU retailers live' },
+  { name: 'NowInStock NL', country: 'NL', flag: '🇳🇱', type: 'tracker', url: 'https://www.nowinstock.net/nl/computers/videocards/nvidia/rtx5090/', note: 'Stock alerts per email' },
   { name: 'Tweakers Pricewatch', country: 'NL', flag: '🇳🇱', type: 'tracker', url: 'https://tweakers.net/pricewatch/zoeken/?keyword=RTX+5090', note: 'NL prijsvergelijker' },
   { name: 'BestValueGPU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://bestvaluegpu.com/en-eu/history/new-and-used-rtx-5090-price-history-and-specs/', note: 'Prijshistorie EU' },
+  { name: 'Webprice EU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://webprice.eu/amazon/rtx%205090/', note: 'Amazon EU vergelijker' },
 ]
 
 function RetailersList() {
