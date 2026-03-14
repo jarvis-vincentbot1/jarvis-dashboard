@@ -46,11 +46,128 @@ interface ScrapedEntry {
   url: string
 }
 
-// ── Tweakers Pricewatch (NL) ─────────────────────────────────────────────────
-// Tweakers has a public pricewatch that works well
-async function scrapeTweakers(): Promise<ScrapedEntry[]> {
+interface ProductInfo {
+  id: string
+  name: string
+  searchQuery: string
+  maxPrice?: number | null
+}
+
+// ── GPUTracker.eu ─────────────────────────────────────────────────────────────
+// EU-focused GPU price tracker aggregating many retailers
+async function scrapeGpuTracker(query: string): Promise<ScrapedEntry[]> {
   const results: ScrapedEntry[] = []
-  const url = 'https://tweakers.net/pricewatch/zoeken/?keyword=rtx+5090'
+  const encoded = encodeURIComponent(query)
+  const url = `https://www.gputracker.eu/en/list/graph-card?s=${encoded}`
+  console.log('[GPUTracker] Fetching...')
+  const res = await fetchPage(url, 'nl-NL,nl;q=0.9,en;q=0.8', 'https://www.gputracker.eu')
+  if (!res || !res.ok) {
+    console.log(`[GPUTracker] Failed: ${res?.status}`)
+    return results
+  }
+  const html = await res.text()
+
+  // GPUTracker shows prices in product cards with retailer info
+  // Look for JSON-LD product data first
+  const jsonLdRegex = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi
+  let m: RegExpExecArray | null
+  while ((m = jsonLdRegex.exec(html)) !== null) {
+    try {
+      const data = JSON.parse(m[1])
+      const items = Array.isArray(data) ? data : [data]
+      for (const item of items) {
+        if (item['@type'] === 'Product') {
+          const offers = Array.isArray(item.offers) ? item.offers : item.offers ? [item.offers] : []
+          for (const offer of offers) {
+            const price = parseFloat(offer.price ?? 0)
+            if (price > 50) {
+              const seller = offer.seller?.name ?? offer.name ?? 'GPUTracker'
+              results.push({
+                retailer: String(seller).slice(0, 50),
+                country: 'EU',
+                price,
+                currency: offer.priceCurrency ?? 'EUR',
+                inStock: offer.availability?.includes('InStock') ?? false,
+                url: offer.url ?? url,
+              })
+            }
+          }
+        }
+      }
+    } catch { /* skip */ }
+  }
+
+  // Fallback: scrape price blocks directly
+  if (results.length === 0) {
+    // Match patterns like: retailer name ... €1.999 or €999,00
+    const blockRegex = /class="[^"]*(?:price|offer|product)[^"]*"[\s\S]{0,300}?(\d{1,2}\.?\d{3}[,\.]\d{2})\s*€/gi
+    const seen = new Set<number>()
+    while ((m = blockRegex.exec(html)) !== null && results.length < 10) {
+      const raw = m[1].replace(/\./g, '').replace(',', '.')
+      const price = parseFloat(raw)
+      if (!isNaN(price) && price > 50 && !seen.has(Math.round(price))) {
+        seen.add(Math.round(price))
+        results.push({ retailer: 'GPUTracker', country: 'EU', price, currency: 'EUR', inStock: true, url })
+      }
+    }
+  }
+
+  console.log(`[GPUTracker] Found ${results.length} prices`)
+  return results
+}
+
+// ── Geizhals EU ──────────────────────────────────────────────────────────────
+// Comprehensive European price comparison with many niche retailers
+async function scrapeGeizhals(query: string): Promise<ScrapedEntry[]> {
+  const results: ScrapedEntry[] = []
+  await delay(2000, 4000)
+  const encoded = encodeURIComponent(query)
+  const url = `https://geizhals.eu/?fs=${encoded}&sort=p&v=e`
+  console.log('[Geizhals] Fetching...')
+  const res = await fetchPage(url, 'de-DE,de;q=0.9,en;q=0.8', 'https://geizhals.eu')
+  if (!res || !res.ok) {
+    console.log(`[Geizhals] Failed: ${res?.status}`)
+    return results
+  }
+  const html = await res.text()
+
+  // Geizhals shows prices like "1.999,00 €"
+  const seen = new Set<number>()
+  // Look for merchant entries with prices
+  const blockRegex = /(\d{1,2}\.?\d{3}[,\.]\d{2})\s*€/g
+  let m: RegExpExecArray | null
+  while ((m = blockRegex.exec(html)) !== null && results.length < 15) {
+    const raw = m[1].replace(/\./g, '').replace(',', '.')
+    const price = parseFloat(raw)
+    if (!isNaN(price) && price > 50 && !seen.has(Math.round(price))) {
+      seen.add(Math.round(price))
+      results.push({ retailer: 'Geizhals', country: 'EU', price, currency: 'EUR', inStock: true, url })
+    }
+  }
+
+  // Also try to extract retailer names from result blocks
+  if (results.length === 0) {
+    const simplePrice = /€\s*([\d.,]+)/g
+    while ((m = simplePrice.exec(html)) !== null && results.length < 8) {
+      const raw = m[1].replace(/\./g, '').replace(',', '.')
+      const price = parseFloat(raw)
+      if (!isNaN(price) && price > 50 && !seen.has(Math.round(price))) {
+        seen.add(Math.round(price))
+        results.push({ retailer: 'Geizhals', country: 'EU', price, currency: 'EUR', inStock: true, url })
+      }
+    }
+  }
+
+  console.log(`[Geizhals] Found ${results.length} prices`)
+  return results
+}
+
+// ── Tweakers Pricewatch (NL) ─────────────────────────────────────────────────
+async function scrapeTweakers(query: string): Promise<ScrapedEntry[]> {
+  const results: ScrapedEntry[] = []
+  await delay(2000, 4000)
+  const encoded = encodeURIComponent(query)
+  const url = `https://tweakers.net/pricewatch/zoeken/?keyword=${encoded}`
   console.log('[Tweakers] Fetching...')
   const res = await fetchPage(url, 'nl-NL,nl;q=0.9,en;q=0.8', 'https://tweakers.net')
   if (!res || !res.ok) {
@@ -59,26 +176,26 @@ async function scrapeTweakers(): Promise<ScrapedEntry[]> {
   }
   const html = await res.text()
 
-  // Extract JSON-LD or price data from Tweakers
-  // Tweakers includes pricing in their HTML as data attributes or JSON
-  const priceRegex = /class="price[^"]*"[^>]*>(?:[^<]*<[^>]+>)*[^<]*&euro;\s*([\d.]+)/gi
-  let m: RegExpExecArray | null
   const seen = new Set<number>()
-  while ((m = priceRegex.exec(html)) !== null && results.length < 5) {
-    const price = parseFloat(m[1].replace('.', '').replace(',', '.'))
-    if (!isNaN(price) && price > 500 && price < 5000 && !seen.has(Math.round(price))) {
-      seen.add(Math.round(price))
+  let m: RegExpExecArray | null
+
+  // Try data-price attributes
+  const dataPriceRegex = /data-price="(\d+)"/gi
+  while ((m = dataPriceRegex.exec(html)) !== null && results.length < 8) {
+    const price = parseInt(m[1])
+    if (price > 50 && !seen.has(price)) {
+      seen.add(price)
       results.push({ retailer: 'Tweakers', country: 'NL', price, currency: 'EUR', inStock: true, url })
     }
   }
 
-  // Alternative: look for data-price attributes
+  // Fallback: euro price pattern
   if (results.length === 0) {
-    const dataPriceRegex = /data-price="(\d+)"/gi
-    while ((m = dataPriceRegex.exec(html)) !== null && results.length < 5) {
-      const price = parseInt(m[1])
-      if (price > 500 && price < 5000 && !seen.has(price)) {
-        seen.add(price)
+    const priceRegex = /&euro;\s*([\d.]+)/gi
+    while ((m = priceRegex.exec(html)) !== null && results.length < 5) {
+      const price = parseFloat(m[1].replace('.', '').replace(',', '.'))
+      if (!isNaN(price) && price > 50 && !seen.has(Math.round(price))) {
+        seen.add(Math.round(price))
         results.push({ retailer: 'Tweakers', country: 'NL', price, currency: 'EUR', inStock: true, url })
       }
     }
@@ -88,44 +205,12 @@ async function scrapeTweakers(): Promise<ScrapedEntry[]> {
   return results
 }
 
-// ── Geizhals EU ──────────────────────────────────────────────────────────────
-// Geizhals is a European comparison site, generally scraper-friendly
-async function scrapeGeizhals(): Promise<ScrapedEntry[]> {
-  const results: ScrapedEntry[] = []
-  await delay(3000, 6000) // Wait after Tweakers
-  const url = 'https://geizhals.eu/?cat=gra16_512&xf=10275_5090&sort=p&v=e'
-  console.log('[Geizhals] Fetching...')
-  const res = await fetchPage(url, 'de-DE,de;q=0.9,en;q=0.8', 'https://geizhals.eu')
-  if (!res || !res.ok) {
-    console.log(`[Geizhals] Failed: ${res?.status}`)
-    return results
-  }
-  const html = await res.text()
-
-  // Geizhals shows prices like "1.999,00"
-  const seen = new Set<number>()
-  // Look for product entries with prices
-  const blockRegex = /5090[\s\S]{0,600}?(\d{1,2}\.?\d{3}[,\.]\d{2})\s*€/gi
-  let m: RegExpExecArray | null
-  while ((m = blockRegex.exec(html)) !== null && results.length < 8) {
-    const raw = m[1].replace(/\./g, '').replace(',', '.')
-    const price = parseFloat(raw)
-    if (!isNaN(price) && price > 500 && price < 5000 && !seen.has(Math.round(price))) {
-      seen.add(Math.round(price))
-      results.push({ retailer: 'Geizhals', country: 'EU', price, currency: 'EUR', inStock: true, url })
-    }
-  }
-
-  console.log(`[Geizhals] Found ${results.length} prices`)
-  return results
-}
-
 // ── Megekko (NL) ─────────────────────────────────────────────────────────────
-// Dutch tech retailer, fairly scraper-friendly
-async function scrapeMegekko(): Promise<ScrapedEntry[]> {
+async function scrapeMegekko(query: string): Promise<ScrapedEntry[]> {
   const results: ScrapedEntry[] = []
-  await delay(3000, 5000)
-  const url = 'https://www.megekko.nl/product/3/35/Grafische-kaarten/RTX-5090'
+  await delay(2000, 4000)
+  const encoded = encodeURIComponent(query)
+  const url = `https://www.megekko.nl/search?q=${encoded}`
   console.log('[Megekko] Fetching...')
   const res = await fetchPage(url, 'nl-NL,nl;q=0.9', 'https://www.megekko.nl')
   if (!res || !res.ok) {
@@ -134,7 +219,6 @@ async function scrapeMegekko(): Promise<ScrapedEntry[]> {
   }
   const html = await res.text()
 
-  // Look for JSON-LD product listings
   const jsonLdRegex = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi
   let m: RegExpExecArray | null
   while ((m = jsonLdRegex.exec(html)) !== null) {
@@ -142,9 +226,9 @@ async function scrapeMegekko(): Promise<ScrapedEntry[]> {
       const data = JSON.parse(m[1])
       const items = Array.isArray(data) ? data : [data]
       for (const item of items) {
-        if (item['@type'] === 'Product' && item.name?.toLowerCase().includes('5090')) {
+        if (item['@type'] === 'Product') {
           const price = parseFloat(item.offers?.price ?? item.offers?.lowPrice ?? 0)
-          if (price > 500) {
+          if (price > 50) {
             results.push({
               retailer: 'Megekko',
               country: 'NL',
@@ -159,27 +243,16 @@ async function scrapeMegekko(): Promise<ScrapedEntry[]> {
     } catch { /* skip */ }
   }
 
-  // Fallback: regex for price
-  if (results.length === 0) {
-    const priceRegex = /5090[\s\S]{0,500}?€\s*([\d.,]+)/gi
-    while ((m = priceRegex.exec(html)) !== null && results.length < 3) {
-      const raw = m[1].replace(/\./g, '').replace(',', '.')
-      const price = parseFloat(raw)
-      if (!isNaN(price) && price > 500 && price < 5000) {
-        results.push({ retailer: 'Megekko', country: 'NL', price, currency: 'EUR', inStock: false, url })
-      }
-    }
-  }
-
   console.log(`[Megekko] Found ${results.length} prices`)
   return results
 }
 
-// ── Alternate (NL/DE) ────────────────────────────────────────────────────────
-async function scrapeAlternate(): Promise<ScrapedEntry[]> {
+// ── Alternate NL ─────────────────────────────────────────────────────────────
+async function scrapeAlternate(query: string): Promise<ScrapedEntry[]> {
   const results: ScrapedEntry[] = []
   await delay(2000, 4000)
-  const url = 'https://www.alternate.nl/listing.xhtml?q=rtx+5090'
+  const encoded = encodeURIComponent(query)
+  const url = `https://www.alternate.nl/listing.xhtml?q=${encoded}`
   console.log('[Alternate] Fetching...')
   const res = await fetchPage(url, 'nl-NL,nl;q=0.9', 'https://www.alternate.nl')
   if (!res || !res.ok) {
@@ -188,7 +261,6 @@ async function scrapeAlternate(): Promise<ScrapedEntry[]> {
   }
   const html = await res.text()
 
-  // Alternate uses JSON-LD
   const jsonLdRegex = /<script[^>]*type="application\/ld\+json"[^>]*>([\s\S]*?)<\/script>/gi
   let m: RegExpExecArray | null
   while ((m = jsonLdRegex.exec(html)) !== null) {
@@ -196,9 +268,9 @@ async function scrapeAlternate(): Promise<ScrapedEntry[]> {
       const data = JSON.parse(m[1])
       const items = Array.isArray(data) ? data : [data]
       for (const item of items) {
-        if (item['@type'] === 'Product' && item.name?.toLowerCase().includes('5090')) {
+        if (item['@type'] === 'Product') {
           const price = parseFloat(item.offers?.price ?? 0)
-          if (price > 500) {
+          if (price > 50) {
             results.push({
               retailer: 'Alternate NL',
               country: 'NL',
@@ -217,39 +289,48 @@ async function scrapeAlternate(): Promise<ScrapedEntry[]> {
   return results
 }
 
-// ── Main scrape function ──────────────────────────────────────────────────────
-export async function scrapeRTX5090Prices() {
-  console.log('[Scraper] Starting RTX 5090 price scrape...')
+// ── Main generic scrape function ──────────────────────────────────────────────
+export async function scrapeHardwarePrices(product: ProductInfo) {
+  const { id, name, searchQuery, maxPrice } = product
+  console.log(`[Scraper] Starting scrape for "${name}" (query: "${searchQuery}")`)
 
-  // Upsert the product
-  const product = await prisma.product.upsert({
-    where: { id: 'rtx-5090' },
-    create: { id: 'rtx-5090', name: 'NVIDIA GeForce RTX 5090', category: 'gpu' },
-    update: {},
+  // Ensure product exists in DB
+  await prisma.product.upsert({
+    where: { id },
+    create: { id, name, searchQuery, maxPrice: maxPrice ?? null, category: 'gpu' },
+    update: { name, searchQuery, maxPrice: maxPrice ?? null },
   })
+
+  // Clear existing entries
+  await prisma.priceEntry.deleteMany({ where: { productId: id } })
 
   let saved = 0
 
-  // Clear all entries before saving fresh data
-  await prisma.priceEntry.deleteMany({
-    where: { productId: product.id }
-  })
+  const scrapers = [
+    () => scrapeGpuTracker(searchQuery),
+    () => scrapeGeizhals(searchQuery),
+    () => scrapeTweakers(searchQuery),
+    () => scrapeMegekko(searchQuery),
+    () => scrapeAlternate(searchQuery),
+  ]
 
-  // Run scrapers sequentially (be polite, avoid simultaneous requests)
-  const scrapers = [scrapeTweakers, scrapeGeizhals, scrapeMegekko, scrapeAlternate]
   for (const scraper of scrapers) {
     try {
       const entries = await scraper()
       for (const entry of entries) {
+        // Skip if above max price
+        if (maxPrice && entry.price > maxPrice) continue
+        if (!entry.retailer || !entry.price || entry.price < 10) continue
+
         await prisma.priceEntry.create({
           data: {
-            productId: product.id,
-            retailer: entry.retailer,
-            country: entry.country,
-            price: entry.price,
-            currency: entry.currency,
-            inStock: entry.inStock,
-            url: entry.url,
+            productId: id,
+            retailer: String(entry.retailer).slice(0, 50),
+            country: String(entry.country || 'EU').slice(0, 10),
+            price: Number(entry.price),
+            currency: String(entry.currency || 'EUR').slice(0, 5),
+            inStock: Boolean(entry.inStock),
+            url: String(entry.url || '').slice(0, 500),
           },
         })
         saved++
@@ -259,5 +340,36 @@ export async function scrapeRTX5090Prices() {
     }
   }
 
-  console.log(`[Scraper] Done. Saved ${saved} price entries.`)
+  console.log(`[Scraper] Done for "${name}". Saved ${saved} entries.`)
+  return saved
+}
+
+// ── Scrape all active products ────────────────────────────────────────────────
+export async function scrapeAllProducts() {
+  const products = await prisma.product.findMany({
+    where: { active: true, NOT: { searchQuery: null } },
+  })
+
+  console.log(`[Scraper] Scraping ${products.length} products...`)
+
+  for (const product of products) {
+    if (!product.searchQuery) continue
+    await scrapeHardwarePrices({
+      id: product.id,
+      name: product.name,
+      searchQuery: product.searchQuery,
+      maxPrice: product.maxPrice,
+    })
+    await delay(5000, 10000)
+  }
+}
+
+// ── Legacy RTX 5090 scrape (kept for backward compat) ────────────────────────
+export async function scrapeRTX5090Prices() {
+  return scrapeHardwarePrices({
+    id: 'rtx-5090',
+    name: 'NVIDIA GeForce RTX 5090',
+    searchQuery: 'RTX 5090',
+    maxPrice: null,
+  })
 }

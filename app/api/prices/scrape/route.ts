@@ -1,17 +1,13 @@
 // POST /api/prices/scrape
-// Two modes:
-//   1. Internal trigger (no body) → runs lib/scraper.ts on VPS
-//   2. External data push (body with { entries: [...] }) → saves prices directly
-//      Used by Mac mini Playwright scraper
+// Modes:
+//   1. Internal scrape (no body / body with productId) → runs lib/scraper.ts
+//   2. External data push (body with { productId, entries: [...] }) → saves prices directly
 //
 // Auth: X-Cron-Secret header must match CRON_SECRET env var
 
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { scrapeRTX5090Prices } from '@/lib/scraper'
-
-const PRODUCT_ID = 'rtx-5090'
-const PRODUCT_NAME = 'NVIDIA GeForce RTX 5090'
+import { scrapeHardwarePrices, scrapeAllProducts } from '@/lib/scraper'
 
 interface PriceEntry {
   retailer: string
@@ -30,52 +26,68 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  // Check if external scraper is pushing data
-  let body: { entries?: PriceEntry[] } = {}
+  let body: { productId?: string; entries?: PriceEntry[] } = {}
   try {
     const text = await req.text()
     if (text) body = JSON.parse(text)
-  } catch { /* empty body = internal trigger */ }
+  } catch { /* empty body = scrape all */ }
+
+  const productId = body.productId
 
   if (body.entries && Array.isArray(body.entries) && body.entries.length > 0) {
-    // Mode 2: Save externally scraped prices
-    const entries = body.entries as PriceEntry[]
-    console.log(`[Scrape] Received ${entries.length} prices from external scraper`)
+    // External scraper pushing data for a specific product
+    if (!productId) {
+      return NextResponse.json({ error: 'productId required with entries' }, { status: 400 })
+    }
 
-    await prisma.product.upsert({
-      where: { id: PRODUCT_ID },
-      create: { id: PRODUCT_ID, name: PRODUCT_NAME, category: 'gpu' },
-      update: {},
-    })
+    const product = await prisma.product.findUnique({ where: { id: productId } })
+    if (!product) {
+      return NextResponse.json({ error: 'Product not found' }, { status: 404 })
+    }
 
-    // Clear all existing entries before saving fresh data
-    await prisma.priceEntry.deleteMany({
-      where: { productId: PRODUCT_ID }
-    })
+    console.log(`[Scrape] Received ${body.entries.length} prices for "${product.name}"`)
 
-    // Save new entries
+    await prisma.priceEntry.deleteMany({ where: { productId } })
+
     let saved = 0
-    for (const e of entries) {
-      if (!e.retailer || !e.price || e.price < 100) continue
+    for (const e of body.entries) {
+      if (!e.retailer || !e.price || e.price < 10) continue
+      if (product.maxPrice && e.price > product.maxPrice) continue
       await prisma.priceEntry.create({
         data: {
-          productId: PRODUCT_ID,
+          productId,
           retailer: String(e.retailer).slice(0, 50),
           country: String(e.country || 'EU').slice(0, 10),
           price: Number(e.price),
           currency: String(e.currency || 'EUR').slice(0, 5),
           inStock: Boolean(e.inStock),
           url: String(e.url || '').slice(0, 500),
-        }
+        },
       })
       saved++
     }
 
-    console.log(`[Scrape] Saved ${saved} price entries from Mac mini scraper`)
     return NextResponse.json({ ok: true, saved, source: 'external' })
   }
 
-  // Mode 1: Internal trigger — run scraper on VPS
-  scrapeRTX5090Prices().catch((e) => console.error('[Scrape] Error:', e))
-  return NextResponse.json({ ok: true, message: 'Scrape started', source: 'internal' })
+  if (productId) {
+    // Internal scrape for a specific product
+    const product = await prisma.product.findUnique({ where: { id: productId } })
+    if (!product || !product.searchQuery) {
+      return NextResponse.json({ error: 'Product not found or missing searchQuery' }, { status: 404 })
+    }
+
+    scrapeHardwarePrices({
+      id: product.id,
+      name: product.name,
+      searchQuery: product.searchQuery,
+      maxPrice: product.maxPrice,
+    }).catch((e) => console.error('[Scrape] Error:', e))
+
+    return NextResponse.json({ ok: true, message: `Scrape started for "${product.name}"`, source: 'internal' })
+  }
+
+  // Scrape all active products
+  scrapeAllProducts().catch((e) => console.error('[Scrape] Error:', e))
+  return NextResponse.json({ ok: true, message: 'Scrape started for all products', source: 'internal' })
 }

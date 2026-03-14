@@ -92,7 +92,7 @@ function SignOutIcon() {
 const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean }> }[] = [
   { id: 'dashboard', label: 'Home',       Icon: GridIcon },
   { id: 'chat',      label: 'Chat',       Icon: ChatIcon },
-  { id: 'prices',    label: 'RTX 5090',   Icon: GpuIcon },
+  { id: 'prices',    label: 'Hardware',   Icon: GpuIcon },
   { id: 'monitoring',label: 'Servers',    Icon: MonitorIcon },
   { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
   { id: 'calculator',label: 'Calculator', Icon: CalcIcon },

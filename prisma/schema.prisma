@@ -51,12 +51,14 @@ model Todo {
 }
 
 model Product {
-  id        String       @id @default(cuid())
-  name      String
-  category  String       @default("gpu")
-  active    Boolean      @default(true)
-  createdAt DateTime     @default(now())
-  prices    PriceEntry[]
+  id          String       @id @default(cuid())
+  name        String
+  searchQuery String?
+  maxPrice    Float?
+  category    String       @default("gpu")
+  active      Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  prices      PriceEntry[]
 }
 
 model PriceEntry {
