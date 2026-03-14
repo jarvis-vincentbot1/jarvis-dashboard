@@ -350,6 +350,110 @@ function ProductCard({ product, inStockOnly, onRemoved }: ProductCardProps) {
   )
 }
 
+// ── EU Retailers List ────────────────────────────────────────────────────────
+
+interface Retailer {
+  name: string
+  country: string
+  flag: string
+  url: string
+  type: 'shop' | 'tracker'
+  note?: string
+}
+
+const EU_RETAILERS: Retailer[] = [
+  // NL direct
+  { name: 'Coolblue', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.coolblue.nl/en/video-cards/nvidia-chipset/nvidia-geforce-rtx-5090', note: 'Voor 23:59 besteld, morgen in huis' },
+  { name: 'Alternate NL', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.alternate.nl/Grafische-kaarten/NVIDIA-grafische-kaarten/RTX-5090' },
+  { name: 'Azerty', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://azerty.nl/componenten/videokaarten/nvidia/geforce-rtx-5090' },
+  { name: 'Bol.com', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.bol.com/nl/nl/l/nvidia-geforce-rtx-5090-videokaarten/16443/7685302246/' },
+  { name: 'Megekko', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.megekko.nl/search?q=RTX+5090' },
+  { name: 'Proshop NL', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.proshop.nl/NVIDIA-GeForce-RTX-50-Series' },
+  { name: 'MediaMarkt NL', country: 'NL', flag: '🇳🇱', type: 'shop', url: 'https://www.mediamarkt.nl/nl/search.html?query=RTX+5090' },
+  // DE → ships NL
+  { name: 'Alternate DE', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.alternate.de/Grafikkarten/NVIDIA-Grafikkarten/RTX-5090', note: 'Gratis verzending naar NL' },
+  { name: 'Mindfactory', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.mindfactory.de/Hardware/Grafikkarten+(VGA)/GeForce+RTX+fuer+Gaming/RTX+5090.html' },
+  { name: 'Caseking', country: 'DE', flag: '🇩🇪', type: 'shop', url: 'https://www.caseking.de/en/pc-components/graphics-cards/nvidia/rtx-5000/geforce-rtx-5090' },
+  // Trackers/comparators
+  { name: 'GPUTracker EU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://www.gputracker.eu/en/search/category/1/graphics-cards/facet/2/graphics-chip/nvidia-rtx-5090', note: 'Alle EU retailers' },
+  { name: 'NowInStock NL', country: 'NL', flag: '🇳🇱', type: 'tracker', url: 'https://www.nowinstock.net/nl/computers/videocards/nvidia/rtx5090/', note: 'Stock alerts' },
+  { name: 'Tweakers Pricewatch', country: 'NL', flag: '🇳🇱', type: 'tracker', url: 'https://tweakers.net/pricewatch/zoeken/?keyword=RTX+5090', note: 'NL prijsvergelijker' },
+  { name: 'BestValueGPU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://bestvaluegpu.com/en-eu/history/new-and-used-rtx-5090-price-history-and-specs/', note: 'Prijshistorie EU' },
+]
+
+function RetailersList() {
+  const [open, setOpen] = useState(false)
+  const shops = EU_RETAILERS.filter((r) => r.type === 'shop')
+  const trackers = EU_RETAILERS.filter((r) => r.type === 'tracker')
+
+  return (
+    <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors select-none"
+      >
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-semibold text-gray-300">🛒 EU Retailers — RTX 5090</span>
+          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#2a2a2a] text-gray-500">
+            {shops.length} winkels · {trackers.length} trackers
+          </span>
+        </div>
+        <span className={`text-gray-600 text-xs transition-transform duration-200 ${open ? 'rotate-180' : ''}`}>▾</span>
+      </button>
+
+      {open && (
+        <div className="border-t border-[#1f1f1f] p-4 space-y-4">
+          {/* Shops */}
+          <div>
+            <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">Winkels</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {shops.map((r) => (
+                <a
+                  key={r.name}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#0f0f0f] border border-[#2a2a2a] hover:border-[#3a3a3a] hover:bg-[#141414] transition-colors group"
+                >
+                  <span className="text-lg flex-shrink-0">{r.flag}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-gray-200 font-medium group-hover:text-white transition-colors">{r.name}</div>
+                    {r.note && <div className="text-[10px] text-gray-600 truncate">{r.note}</div>}
+                  </div>
+                  <span className="text-gray-600 group-hover:text-gray-400 text-xs flex-shrink-0">↗</span>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          {/* Trackers */}
+          <div>
+            <div className="text-[10px] text-gray-600 uppercase tracking-widest mb-2">Prijsvergelijkers & stock trackers</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {trackers.map((r) => (
+                <a
+                  key={r.name}
+                  href={r.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-[#0f0f0f] border border-[#2a2a2a] hover:border-[#f97316]/40 hover:bg-[#141414] transition-colors group"
+                >
+                  <span className="text-lg flex-shrink-0">{r.flag}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm text-gray-200 font-medium group-hover:text-white transition-colors">{r.name}</div>
+                    {r.note && <div className="text-[10px] text-orange-500/60 truncate">{r.note}</div>}
+                  </div>
+                  <span className="text-gray-600 group-hover:text-gray-400 text-xs flex-shrink-0">↗</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Component ──────────────────────────────────────────────────────────
 
 export default function PriceTracker() {
@@ -456,6 +560,9 @@ export default function PriceTracker() {
             ))}
           </div>
         )}
+
+        {/* EU Retailers reference list */}
+        <RetailersList />
       </div>
     </div>
   )
