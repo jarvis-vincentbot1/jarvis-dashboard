@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage'
 
 interface Props {
   activeNav: NavItem
@@ -86,6 +86,16 @@ function CalcIcon({ active }: { active: boolean }) {
   )
 }
 
+function UsageIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2L2 7l10 5 10-5-10-5z" />
+      <path d="M2 17l10 5 10-5" />
+      <path d="M2 12l10 5 10-5" />
+    </svg>
+  )
+}
+
 function SignOutIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -106,6 +116,7 @@ const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean 
   { id: 'supervisor',label: 'Supervisor', Icon: SupervisorIcon },
   { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
   { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
+  { id: 'usage',     label: 'API Usage',  Icon: UsageIcon },
 ]
 
 // ── Component ─────────────────────────────────────────────────────────────────

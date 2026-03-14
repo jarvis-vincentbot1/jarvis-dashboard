@@ -11,6 +11,7 @@ import Monitoring from './components/Monitoring'
 import PriceTracker from './components/PriceTracker'
 import TrustedSuppliers from './components/TrustedSuppliers'
 import Supervisor from './components/Supervisor'
+import APIUsage from './components/APIUsage'
 
 interface Chat {
   id: string
@@ -175,6 +176,8 @@ export default function DashboardPage() {
             </>
           ) : activeNav === 'supervisor' ? (
             <Supervisor />
+          ) : activeNav === 'usage' ? (
+            <APIUsage />
           ) : (
             <TodoPanel />
           )}
