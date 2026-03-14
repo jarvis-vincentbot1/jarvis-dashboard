@@ -151,7 +151,7 @@ export default function DashboardPage() {
               <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
             </div>
           ) : activeNav === 'dashboard' ? (
-            <Dashboard allChats={allChats} onOpenChat={handleOpenChat} />
+            <Dashboard allChats={allChats} onOpenChat={handleOpenChat} onNavChange={setActiveNav as (nav: string) => void} />
           ) : activeNav === 'chat' ? (
             <ChatSection
               chatData={chatData}
