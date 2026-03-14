@@ -9,6 +9,7 @@ import TodoPanel from './components/TodoPanel'
 import VatCalculator from './components/VatCalculator'
 import Monitoring from './components/Monitoring'
 import PriceTracker from './components/PriceTracker'
+import TrustedSuppliers from './components/TrustedSuppliers'
 import Supervisor from './components/Supervisor'
 
 interface Chat {
@@ -168,7 +169,10 @@ export default function DashboardPage() {
           ) : activeNav === 'monitoring' ? (
             <Monitoring />
           ) : activeNav === 'prices' ? (
-            <PriceTracker />
+            <>
+              <PriceTracker />
+              <TrustedSuppliers />
+            </>
           ) : activeNav === 'supervisor' ? (
             <Supervisor />
           ) : (
