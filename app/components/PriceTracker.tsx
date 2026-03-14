@@ -385,8 +385,8 @@ const EU_RETAILERS: Retailer[] = [
   { name: 'LDLC', country: 'FR', flag: '🇫🇷', type: 'shop', url: 'https://www.ldlc.com/informatique/pieces-informatique/carte-graphique-interne/c4684/+fxf-fc3p+fv1028-5090.html', note: 'Grote Franse retailer' },
   { name: 'Amazon FR', country: 'FR', flag: '🇫🇷', type: 'shop', url: 'https://www.amazon.fr/s?k=RTX+5090' },
   // 🇬🇧 UK (let op: buiten EU, evt. douane)
-  { name: 'Scan UK', country: 'GB', flag: '🇬🇧', type: 'shop', url: 'https://www.scan.co.uk/search?q=RTX+5090', note: 'Let op: buiten EU' },
-  { name: 'Overclockers UK', country: 'GB', flag: '🇬🇧', type: 'shop', url: 'https://www.overclockers.co.uk/pc-components/graphics-cards/nvidia-graphics-cards/nvidia-geforce-rtx-5090-graphics-cards', note: 'Let op: buiten EU' },
+  { name: 'Scan UK', country: 'GB', flag: '🇬🇧', type: 'shop', url: 'https://www.scan.co.uk/search?q=RTX+5090', note: 'Buiten EU (post-Brexit), 0% invoerrecht' },
+  { name: 'Overclockers UK', country: 'GB', flag: '🇬🇧', type: 'shop', url: 'https://www.overclockers.co.uk/pc-components/graphics-cards/nvidia-graphics-cards/nvidia-geforce-rtx-5090-graphics-cards', note: 'Buiten EU (post-Brexit), 0% invoerrecht' },
   // 🌍 Prijsvergelijkers & stock trackers
   { name: 'GPUTracker EU', country: 'EU', flag: '🇪🇺', type: 'tracker', url: 'https://www.gputracker.eu/en/search/category/1/graphics-cards/facet/2/graphics-chip/nvidia-rtx-5090', note: 'Alle EU retailers live' },
   { name: 'NowInStock NL', country: 'NL', flag: '🇳🇱', type: 'tracker', url: 'https://www.nowinstock.net/nl/computers/videocards/nvidia/rtx5090/', note: 'Stock alerts per email' },
