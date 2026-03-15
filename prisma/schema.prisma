@@ -150,3 +150,101 @@ model Credit {
   @@index([date])
   @@index([source])
 }
+
+// ── Order Management ──────────────────────────────────────────────────────────
+
+model Customer {
+  id        String   @id @default(cuid())
+  firstName String
+  lastName  String
+  email     String   @unique
+  phone     String?
+  company   String?
+  
+  // Address fields
+  addressLine1 String?
+  addressLine2 String?
+  city      String?
+  state     String?
+  postalCode String?
+  country   String   @default("NL")
+  
+  // Metadata
+  notes     String?
+  active    Boolean  @default(true)
+  orders    Order[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([email])
+  @@index([active])
+  @@index([createdAt])
+}
+
+model Order {
+  id          String   @id @default(cuid())
+  orderNumber String   @unique // e.g., ORD-2026-001
+  
+  // Customer info
+  customerId  String
+  customer    Customer @relation(fields: [customerId], references: [id], onDelete: Restrict)
+  
+  // Order status
+  status      String   @default("pending") // pending, confirmed, shipped, delivered, cancelled
+  paymentStatus String  @default("unpaid") // unpaid, paid, refunded
+  
+  // Order items
+  items       OrderItem[]
+  
+  // Pricing
+  subtotal    Float    @default(0)
+  tax         Float    @default(0)
+  shipping    Float    @default(0)
+  total       Float    @default(0)
+  currency    String   @default("EUR")
+  
+  // Dates
+  orderDate   DateTime @default(now())
+  dueDate     DateTime?
+  shippedDate DateTime?
+  deliveryDate DateTime?
+  
+  // Additional info
+  shippingMethod String? // e.g., "express", "standard"
+  trackingNumber String?
+  notes       String?
+  internalNotes String?
+  
+  // Metadata
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([orderDate])
+  @@index([dueDate])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Product info
+  productName String
+  sku         String?
+  quantity    Int
+  unitPrice   Float
+  total       Float // quantity * unitPrice
+  
+  // Product details (denormalized for easy viewing)
+  productCategory String?
+  notes       String?
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([orderId])
+  @@index([sku])
+}
