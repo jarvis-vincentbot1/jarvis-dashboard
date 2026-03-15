@@ -5,6 +5,8 @@ import JarvisAIAgent from './JarvisAIAgent'
 import QuickActionBar from './QuickActionBar'
 import { SearchModal } from './SearchModal'
 import { useSearchShortcut } from '../hooks/useSearchShortcut'
+import { ShortcutsModal } from './ShortcutsModal'
+import { useShortcutsShortcut } from '../hooks/useShortcutsShortcut'
 
 interface Chat {
   id: string
@@ -579,7 +581,9 @@ function ModelBadge() {
 
 export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) {
   const [searchOpen, setSearchOpen] = useState(false)
+  const [shortcutsOpen, setShortcutsOpen] = useState(false)
   useSearchShortcut(() => setSearchOpen(true))
+  useShortcutsShortcut(() => setShortcutsOpen(true))
 
   function handleQuickAction(action: 'search' | 'usage' | 'job' | 'alerts') {
     switch (action) {
@@ -601,6 +605,7 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
   return (
     <>
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <ShortcutsModal isOpen={shortcutsOpen} onClose={() => setShortcutsOpen(false)} />
       <div className="min-h-full bg-[#0f0f0f]">
       <div className="max-w-4xl w-full mx-auto p-4 md:p-6 space-y-5">
 
@@ -614,7 +619,16 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
               {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
-          <ModelBadge />
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              className="hidden sm:flex items-center justify-center w-9 h-9 rounded-lg border border-[#2a2a2a] hover:border-[#00ff88]/50 transition-colors text-gray-400 hover:text-gray-300"
+              title="Keyboard shortcuts (Cmd+/)"
+            >
+              <span className="text-sm">?</span>
+            </button>
+            <ModelBadge />
+          </div>
         </div>
 
         {/* Quick action bar */}
