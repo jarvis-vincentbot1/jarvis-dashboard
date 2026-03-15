@@ -363,9 +363,16 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Enter' && !e.shiftKey) {
+    // FIXED: Android Enter bug
+    // Only submit on Enter WITHOUT Shift, Ctrl, or Meta
+    // This allows Shift+Enter to create newlines on all platforms
+    if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault()
       sendMessage()
+    }
+  }
+
+    if (e.key === 'Enter' && !e.shiftKey) {
     }
   }
 
