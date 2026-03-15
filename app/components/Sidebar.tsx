@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research' | 'settings'
 
 interface Props {
   activeNav: NavItem
@@ -116,6 +116,15 @@ function UsageIcon({ active }: { active: boolean }) {
   )
 }
 
+function SettingsIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24" />
+    </svg>
+  )
+}
+
 function SignOutIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -139,21 +148,25 @@ const NAV_GROUPS: {
     ],
   },
   {
-    label: 'Monitor',
+    label: 'Build',
     items: [
-      { id: 'prices',            label: 'Hardware',        Icon: GpuIcon },
-      { id: 'product-research',  label: 'Product Research', Icon: ResearchIcon },
-      { id: 'gpu-inventory',     label: 'GPU Stock',        Icon: InventoryIcon },
-      { id: 'monitoring',        label: 'Servers',         Icon: MonitorIcon },
-      { id: 'usage',             label: 'API Usage',        Icon: UsageIcon },
+      { id: 'product-research', label: 'Product Research', Icon: ResearchIcon },
+      { id: 'calculator',       label: 'Calculator',       Icon: CalcIcon },
     ],
   },
   {
-    label: 'Tools',
+    label: 'Monitor',
     items: [
-      { id: 'supervisor',label: 'Supervisor', Icon: SupervisorIcon },
+      { id: 'monitoring', label: 'Servers',      Icon: MonitorIcon },
+      { id: 'usage',      label: 'API Usage',    Icon: UsageIcon },
+      { id: 'supervisor', label: 'Automation',   Icon: SupervisorIcon },
+    ],
+  },
+  {
+    label: 'Manage',
+    items: [
       { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
-      { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
+      { id: 'settings',  label: 'Settings',   Icon: SettingsIcon },
     ],
   },
 ]

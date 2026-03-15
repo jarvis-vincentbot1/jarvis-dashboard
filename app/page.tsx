@@ -13,6 +13,8 @@ import TrustedSuppliers from './components/TrustedSuppliers'
 import Supervisor from './components/Supervisor'
 import APIUsage from './components/APIUsage'
 import GPUInventory from './components/GPUInventory'
+import ProductResearchTabs from './components/ProductResearch'
+import SettingsPage from './components/Settings'
 
 interface Chat {
   id: string
@@ -176,13 +178,15 @@ export default function DashboardPage() {
               <TrustedSuppliers />
             </>
           ) : activeNav === 'product-research' ? (
-            <PriceTracker />
+            <ProductResearchTabs />
           ) : activeNav === 'supervisor' ? (
             <Supervisor />
           ) : activeNav === 'usage' ? (
             <APIUsage />
           ) : activeNav === 'gpu-inventory' ? (
             <GPUInventory />
+          ) : activeNav === 'settings' ? (
+            <SettingsPage />
           ) : (
             <TodoPanel />
           )}
