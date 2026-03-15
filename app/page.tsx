@@ -15,6 +15,7 @@ import APIUsage from './components/APIUsage'
 import GPUInventory from './components/GPUInventory'
 import ProductResearchTabs from './components/ProductResearch'
 import SettingsPage from './components/Settings'
+import OrderTracking from './components/OrderTracking'
 
 interface Chat {
   id: string
@@ -185,6 +186,8 @@ export default function DashboardPage() {
             <APIUsage />
           ) : activeNav === 'gpu-inventory' ? (
             <GPUInventory />
+          ) : activeNav === 'orders' ? (
+            <OrderTracking />
           ) : activeNav === 'settings' ? (
             <SettingsPage />
           ) : (

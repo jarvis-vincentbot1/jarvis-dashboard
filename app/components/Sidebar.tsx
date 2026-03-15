@@ -165,6 +165,7 @@ const NAV_GROUPS: {
   {
     label: 'Manage',
     items: [
+      { id: 'orders',    label: 'Orders',     Icon: TodoIcon },
       { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
       { id: 'settings',  label: 'Settings',   Icon: SettingsIcon },
     ],
