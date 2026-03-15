@@ -8,6 +8,45 @@
   --sidebar: #1a1a1a;
   --surface: #242424;
   --border: #2a2a2a;
+  color-scheme: dark;
+}
+
+html.light {
+  --accent: #00cc44;
+  --bg: #f5f5f5;
+  --sidebar: #ffffff;
+  --surface: #f0f0f0;
+  --border: #e0e0e0;
+  color-scheme: light;
+}
+
+html.light body {
+  @apply bg-[#f5f5f5] text-gray-900;
+}
+
+html.light a {
+  @apply text-blue-600;
+}
+
+html.light button {
+  @apply text-gray-900;
+}
+
+html.light input,
+html.light textarea {
+  @apply bg-white text-gray-900 border-gray-300;
+}
+
+html.light .prose-jarvis code {
+  @apply bg-gray-100 border-gray-300 text-green-700;
+}
+
+html.light .prose-jarvis pre {
+  @apply bg-gray-50 border-gray-300;
+}
+
+html.light .prose-jarvis blockquote {
+  @apply border-green-500 text-gray-700;
 }
 
 * {

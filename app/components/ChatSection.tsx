@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import ChatWindow from './ChatWindow'
 import NewProjectModal from './NewProjectModal'
+import { ChatSearch } from './ChatSearch'
 
 interface Chat {
   id: string
@@ -49,6 +50,8 @@ export default function ChatSection({
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list')
   const [showNewProject, setShowNewProject] = useState(false)
   const [creatingChatFor, setCreatingChatFor] = useState<string | null>(null) // projectId or 'standalone'
+  const [filteredChats, setFilteredChats] = useState<Chat[]>([])
+  const [filterProjectId, setFilterProjectId] = useState<string | undefined>(undefined)
 
   // Find active chat in all chats
   const allChats = [
@@ -127,7 +130,7 @@ export default function ChatSection({
         }`}
       >
         {/* New Chat button */}
-        <div className="px-3 pt-3 pb-2 flex-shrink-0">
+        <div className="px-3 pt-3 pb-2 flex-shrink-0 space-y-2">
           <button
             onClick={() => createChat()}
             disabled={creatingChatFor === 'standalone'}
@@ -136,11 +139,46 @@ export default function ChatSection({
             <span className="text-base leading-none">+</span>
             New Chat
           </button>
+
+          {/* Chat Search */}
+          <ChatSearch 
+            chatData={chatData}
+            onFilteredChats={(chats, projectId) => {
+              setFilteredChats(chats)
+              setFilterProjectId(projectId)
+            }}
+          />
         </div>
 
         {/* Scrollable list */}
         <div className="flex-1 overflow-y-auto py-1 px-2">
 
+          {/* Show filtered results or full list */}
+          {filteredChats.length > 0 ? (
+            <>
+              {/* Filtered results - show as flat list */}
+              <div className="mb-2">
+                <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wider">
+                  Search Results
+                </div>
+                <ul className="space-y-0.5">
+                  {filteredChats.map((chat) => (
+                    <ChatItem
+                      key={chat.id}
+                      chat={chat}
+                      isActive={activeChatId === chat.id}
+                      isHovered={hoveredChatId === chat.id}
+                      onSelect={() => handleSelectChat(chat.id)}
+                      onDelete={(e) => handleDeleteChat(chat.id, e)}
+                      onMouseEnter={() => setHoveredChatId(chat.id)}
+                      onMouseLeave={() => setHoveredChatId(null)}
+                    />
+                  ))}
+                </ul>
+              </div>
+            </>
+          ) : (
+            <>
           {/* Standalone chats */}
           {chatData.standalone.length > 0 && (
             <div className="mb-2">
@@ -250,6 +288,15 @@ export default function ChatSection({
               No chats yet.
               <br />
               Click + New Chat to get started.
+            </div>
+          )}
+            </>
+          )}
+
+          {/* No search results */}
+          {filteredChats.length === 0 && (chatData.standalone.length > 0 || chatData.projects.length > 0) && (
+            <div className="px-3 py-8 text-sm text-gray-600 text-center">
+              No chats match your search.
             </div>
           )}
         </div>

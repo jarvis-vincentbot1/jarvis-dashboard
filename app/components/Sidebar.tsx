@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { ThemeToggle } from './ThemeToggle'
 
 export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage'
 
@@ -162,8 +163,12 @@ export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
           ))}
         </nav>
 
-        {/* Sign out */}
-        <div className="px-2 py-3 border-t border-white/5 flex-shrink-0">
+        {/* Footer controls */}
+        <div className="px-2 py-3 border-t border-white/5 flex-shrink-0 space-y-1">
+          <div className="flex items-center justify-between px-3 py-2.5">
+            <span className="text-xs text-gray-500 uppercase tracking-wide">Theme</span>
+            <ThemeToggle />
+          </div>
           <button
             onClick={onLogout}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:text-gray-400 hover:bg-white/5 transition-colors"

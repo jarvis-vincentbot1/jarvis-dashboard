@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter } from 'next/font/google'
 import './globals.css'
+import { ErrorBoundary } from './components/ErrorBoundary'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -42,7 +43,9 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/icons/icon-192.png" />
       </head>
       <body className={`${inter.className} bg-[#0f0f0f] text-gray-100 antialiased`}>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </body>
     </html>
   )
