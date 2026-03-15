@@ -77,6 +77,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   const pollIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const pollStartRef = useRef<number>(0)
   const chatIdRef = useRef(chat.id)
+  const isTouchDevice = useRef(typeof window !== 'undefined' && ('ontouchstart' in window || navigator.maxTouchPoints > 0))
 
   // Keep chatIdRef current across renders
   chatIdRef.current = chat.id
@@ -363,8 +364,9 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    // Only send on plain Enter (no Shift/Ctrl/Meta) — fixes Android virtual keyboard bug
-    // Android doesn't reliably set shiftKey, so we explicitly check all modifiers
+    // On touch/mobile: Enter creates newlines (use send button to submit)
+    // On desktop: Enter sends, Shift+Enter creates newline
+    if (isTouchDevice.current) return
     if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
       e.preventDefault()
       sendMessage()
@@ -465,6 +467,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
           <div className="relative">
             <button
               onClick={() => { setShowMenu(!showMenu); setShowModelPicker(false) }}
+              aria-label="Chat options"
               className="text-gray-500 hover:text-gray-300 p-2 rounded-lg hover:bg-[#242424] transition-colors"
             >
               ⋮
@@ -628,6 +631,8 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
             onKeyDown={handleKeyDown}
             placeholder={isRecording ? 'Add a message or send now…' : `Message ${chat.name}…`}
             rows={1}
+            aria-label="Message input"
+            enterKeyHint={isTouchDevice.current ? "send" : "enter"}
             className="w-full bg-transparent px-4 pt-3 pb-2 text-gray-100 placeholder-gray-600 focus:outline-none resize-none text-sm leading-relaxed"
             style={{ minHeight: '46px', maxHeight: '160px' }}
             onInput={(e) => {
@@ -713,6 +718,7 @@ export default function ChatWindow({ chat, onDeleteChat, onTitleUpdate }: Props)
             <button
               onClick={sendMessage}
               disabled={(!input.trim() && pendingFiles.length === 0) || isGenerating}
+              aria-label="Send message"
               className="w-8 h-8 bg-[#00ff88] text-black rounded-xl flex items-center justify-center hover:bg-[#00e87a] active:scale-95 disabled:opacity-25 disabled:cursor-not-allowed transition-all flex-shrink-0"
             >
               {isGenerating ? (

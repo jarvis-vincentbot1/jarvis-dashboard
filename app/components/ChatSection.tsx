@@ -381,38 +381,40 @@ function ChatItem({
   onMouseLeave: () => void
 }) {
   return (
-    <li>
+    <li
+      className="relative group"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
       <button
         onClick={onSelect}
-        onMouseEnter={onMouseEnter}
-        onMouseLeave={onMouseLeave}
-        className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 group ${
+        className={`w-full text-left px-3 py-2 rounded-lg transition-colors flex items-center gap-2 ${
           isActive
             ? 'bg-[#00ff88]/10 text-[#00ff88]'
             : 'text-gray-400 hover:bg-[#1f1f1f] hover:text-gray-200'
         }`}
       >
-        <span className="flex-1 truncate text-sm">{chat.name}</span>
-        {(isHovered || isActive) && (
-          <span
-            role="button"
-            onClick={onDelete}
-            className={`flex-shrink-0 p-0.5 rounded transition-colors ${
-              isActive
-                ? 'text-[#00ff88]/60 hover:text-red-400'
-                : 'text-gray-600 hover:text-red-400'
-            }`}
-            title="Delete chat"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6l-1 14H6L5 6" />
-              <path d="M10 11v6M14 11v6" />
-              <path d="M9 6V4h6v2" />
-            </svg>
-          </span>
-        )}
+        <span className="flex-1 truncate text-sm pr-5">{chat.name}</span>
       </button>
+      {(isHovered || isActive) && (
+        <button
+          onClick={onDelete}
+          aria-label="Delete chat"
+          title="Delete chat"
+          className={`absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded transition-colors ${
+            isActive
+              ? 'text-[#00ff88]/60 hover:text-red-400'
+              : 'text-gray-600 hover:text-red-400'
+          }`}
+        >
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14H6L5 6" />
+            <path d="M10 11v6M14 11v6" />
+            <path d="M9 6V4h6v2" />
+          </svg>
+        </button>
+      )}
     </li>
   )
 }
