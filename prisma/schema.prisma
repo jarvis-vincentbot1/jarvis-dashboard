@@ -134,3 +134,19 @@ model RunStep {
 
   @@index([runId])
 }
+
+model Credit {
+  id        String   @id @default(cuid())
+  date      String   // YYYY-MM-DD
+  model     String
+  totalCost Float
+  timeframe String   @default("daily")
+  source    String   @default("openclaw")
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, model, source])
+  @@index([date])
+  @@index([source])
+}

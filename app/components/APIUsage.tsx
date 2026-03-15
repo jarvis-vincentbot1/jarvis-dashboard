@@ -6,7 +6,23 @@ import { DataUnavailableError } from './ErrorState'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
+type Tab = 'anthropic' | 'openclaw'
 type Timeframe = 'daily' | 'weekly' | 'monthly'
+
+interface CreditsDay {
+  date: string
+  models: Record<string, number>
+  totalCost: number
+}
+
+interface CreditsResponse {
+  source: string
+  days: number
+  totalCost: number
+  daily: CreditsDay[]
+  models: Record<string, number>
+  cached_at: string
+}
 
 interface DailyUsage {
   date: string // YYYY-MM-DD
@@ -181,9 +197,213 @@ function BarChart({ buckets, timeframe }: { buckets: BucketEntry[]; timeframe: T
   )
 }
 
+// ── OpenClaw Credits Panel ─────────────────────────────────────────────────────
+
+function OpenClawPanel() {
+  const [data, setData] = useState<CreditsResponse | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date | null>(null)
+
+  const fetchCredits = async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/credits?source=openclaw&days=30')
+      if (!res.ok) throw new Error(`API error: ${res.status}`)
+      const result = await res.json()
+      setData(result)
+      setLastRefresh(new Date())
+      setError(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch OpenClaw credits')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  useEffect(() => {
+    fetchCredits()
+    const interval = setInterval(fetchCredits, 60000) // refresh every 60s
+    return () => clearInterval(interval)
+  }, [])
+
+  if (loading && !data) {
+    return (
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-[#141414] border border-white/5 rounded-xl p-4 space-y-2">
+              <div className="skeleton h-3 w-20" />
+              <div className="skeleton h-7 w-16" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-[#141414] border border-white/5 rounded-xl p-4">
+          <div className="skeleton h-4 w-32 mb-4" />
+          <div className="skeleton w-full h-32" />
+        </div>
+      </div>
+    )
+  }
+
+  const totalCost = data?.totalCost ?? 0
+  const daily = data?.daily ?? []
+  const models = data?.models ?? {}
+  const modelList = Object.entries(models).sort((a, b) => b[1] - a[1])
+  const maxDay = Math.max(...daily.map(d => d.totalCost), 0.0001)
+  const visible = daily.slice(-14)
+
+  return (
+    <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+      {/* Error */}
+      {error && (
+        <div className="bg-[#141414] border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-sm">
+          <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div>
+            <p className="text-red-400 font-medium">Failed to load OpenClaw credits</p>
+            <p className="text-red-400/60 text-xs mt-0.5">{error} — will retry automatically</p>
+          </div>
+        </div>
+      )}
+
+      {/* Hero */}
+      <div
+        className="rounded-xl p-5 md:p-6 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #0d1a2e 0%, #0f1a1f 50%, #0d1f15 100%)',
+          border: '1px solid rgba(0,212,255,0.15)',
+        }}
+      >
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #00d4ff, transparent 70%)' }} />
+        </div>
+        <div className="relative">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#00d4ff]/70 mb-2">
+            OpenClaw Total — 30 days
+          </p>
+          <div className="flex items-end gap-4 flex-wrap">
+            <span className="text-4xl md:text-5xl font-bold text-white tabular-nums leading-none">
+              ${totalCost.toFixed(4)}
+            </span>
+          </div>
+          <p className="text-gray-500 text-xs mt-2">
+            Avg ${(totalCost / 30).toFixed(5)}/day · {daily.length} days with activity
+            {lastRefresh && <span> · Updated {lastRefresh.toLocaleTimeString()}</span>}
+            {loading && <span className="text-[#00d4ff]/60"> · Refreshing…</span>}
+          </p>
+        </div>
+      </div>
+
+      {/* Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        {[
+          { label: 'Total cost', value: `$${totalCost.toFixed(4)}`, sub: '30 days' },
+          { label: 'Active days', value: String(daily.length), sub: 'with usage' },
+          { label: 'Avg / day', value: `$${(totalCost / 30).toFixed(5)}`, sub: 'last 30d' },
+        ].map(stat => (
+          <div key={stat.label} className="bg-[#141414] border border-white/5 rounded-xl p-4">
+            <p className="text-gray-500 text-xs mb-1">{stat.label}</p>
+            <p className="text-white font-bold text-xl leading-tight">{stat.value}</p>
+            <p className="text-gray-600 text-xs mt-0.5">{stat.sub}</p>
+          </div>
+        ))}
+      </div>
+
+      {/* Bar chart */}
+      {daily.length > 0 && (
+        <div className="bg-[#141414] border border-white/5 rounded-xl p-4 md:p-5">
+          <h2 className="text-white text-sm font-medium mb-4">Daily spend</h2>
+          <div className="flex items-end gap-1 h-32">
+            {visible.map((d, i) => (
+              <div key={i} className="flex-1 flex flex-col items-center gap-1 min-w-0 group relative">
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 z-10 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                  <div className="bg-[#1e1e1e] border border-white/10 rounded-lg p-2 text-xs whitespace-nowrap shadow-xl">
+                    <div className="text-white font-semibold mb-1">{formatDate(d.date)}</div>
+                    <div className="text-[#00d4ff]">${d.totalCost.toFixed(5)}</div>
+                  </div>
+                </div>
+                <div
+                  className="w-full rounded-sm"
+                  style={{
+                    height: `${Math.max((d.totalCost / maxDay) * 112, 2)}px`,
+                    backgroundColor: '#00d4ff',
+                    opacity: 0.75,
+                  }}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex gap-1 mt-2">
+            {visible.map((d, i) => (
+              <div key={i} className="flex-1 min-w-0 text-center overflow-hidden">
+                {i % 2 === 0 && (
+                  <span className="text-[10px] text-gray-600 leading-none block truncate">
+                    {formatDate(d.date).split(' ')[0]}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Per-model breakdown */}
+      {modelList.length > 0 && (
+        <div className="bg-[#141414] border border-white/5 rounded-xl overflow-hidden">
+          <div className="px-4 md:px-5 py-3 border-b border-white/5">
+            <h2 className="text-white text-sm font-medium">Breakdown by model</h2>
+          </div>
+          <div className="divide-y divide-white/5">
+            {modelList.map(([model, cost]) => {
+              const pct = totalCost > 0 ? (cost / totalCost) * 100 : 0
+              return (
+                <div key={model} className="px-4 md:px-5 py-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 bg-[#00d4ff]" />
+                    <span className="text-white text-sm font-medium flex-1">{model}</span>
+                    <span className="text-white font-semibold text-sm">${cost.toFixed(5)}</span>
+                    <span className="text-gray-500 text-xs w-10 text-right">{pct.toFixed(1)}%</span>
+                  </div>
+                  <div className="h-1 bg-white/5 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{ width: `${pct}%`, backgroundColor: '#00d4ff', opacity: 0.7 }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div className="px-4 md:px-5 py-3 border-t border-white/5 flex items-center justify-between bg-white/[0.02]">
+            <span className="text-gray-400 text-sm">Total (30 days)</span>
+            <span className="text-[#00d4ff] font-bold">${totalCost.toFixed(5)}</span>
+          </div>
+        </div>
+      )}
+
+      {daily.length === 0 && !loading && !error && (
+        <div className="bg-[#141414] border border-white/5 rounded-xl p-8 text-center">
+          <p className="text-gray-500 text-sm">No OpenClaw cost data yet.</p>
+          <p className="text-gray-600 text-xs mt-1">Run the sync script to push session costs from your Mac mini.</p>
+        </div>
+      )}
+
+      {data && !error && (
+        <div className="bg-[#141414] border border-[#00d4ff]/10 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
+          <span className="text-[#00d4ff] font-medium">Live</span>{' '}
+          Refreshes every 60s · Source: openclaw · Last sync: {data.cached_at ? new Date(data.cached_at).toLocaleTimeString() : '—'}
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Main Component ─────────────────────────────────────────────────────────────
 
 export default function APIUsage() {
+  const [activeTab, setActiveTab] = useState<Tab>('anthropic')
   const [timeframe, setTimeframe] = useState<Timeframe>('daily')
   const [data, setData] = useState<UsageResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -287,29 +507,59 @@ export default function APIUsage() {
             <h1 className="text-white font-semibold text-lg leading-tight">API Usage</h1>
             <p className="text-gray-500 text-xs">
               30-day window · Live tracking
-              {lastRefresh && <span> · Updated {lastRefresh.toLocaleTimeString()}</span>}
-              {loading && <span className="text-[#00ff88]/60"> · Refreshing…</span>}
+              {activeTab === 'anthropic' && lastRefresh && <span> · Updated {lastRefresh.toLocaleTimeString()}</span>}
+              {activeTab === 'anthropic' && loading && <span className="text-[#00ff88]/60"> · Refreshing…</span>}
             </p>
           </div>
         </div>
 
-        {/* Timeframe toggle */}
-        <div className="flex items-center gap-1 bg-[#1a1a1a] border border-white/5 rounded-lg p-1">
-          {(['daily', 'weekly', 'monthly'] as Timeframe[]).map(tf => (
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Source tab toggle */}
+          <div className="flex items-center gap-1 bg-[#1a1a1a] border border-white/5 rounded-lg p-1">
             <button
-              key={tf}
-              onClick={() => setTimeframe(tf)}
-              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 capitalize ${
-                timeframe === tf
-                  ? 'bg-[#00ff88]/15 text-[#00ff88]'
-                  : 'text-gray-500 hover:text-gray-300'
+              onClick={() => setActiveTab('anthropic')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                activeTab === 'anthropic' ? 'bg-[#00ff88]/15 text-[#00ff88]' : 'text-gray-500 hover:text-gray-300'
               }`}
             >
-              {tf}
+              Anthropic
             </button>
-          ))}
+            <button
+              onClick={() => setActiveTab('openclaw')}
+              className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 ${
+                activeTab === 'openclaw' ? 'bg-[#00d4ff]/15 text-[#00d4ff]' : 'text-gray-500 hover:text-gray-300'
+              }`}
+            >
+              OpenClaw
+            </button>
+          </div>
+
+          {/* Timeframe toggle — Anthropic only */}
+          {activeTab === 'anthropic' && (
+            <div className="flex items-center gap-1 bg-[#1a1a1a] border border-white/5 rounded-lg p-1">
+              {(['daily', 'weekly', 'monthly'] as Timeframe[]).map(tf => (
+                <button
+                  key={tf}
+                  onClick={() => setTimeframe(tf)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-150 capitalize ${
+                    timeframe === tf
+                      ? 'bg-[#00ff88]/15 text-[#00ff88]'
+                      : 'text-gray-500 hover:text-gray-300'
+                  }`}
+                >
+                  {tf}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
+
+      {/* OpenClaw tab */}
+      {activeTab === 'openclaw' && <OpenClawPanel />}
+
+      {/* Anthropic tab content */}
+      {activeTab === 'anthropic' && <>
 
       {/* Error banner */}
       {error && (
@@ -439,6 +689,8 @@ export default function APIUsage() {
           {lastRefresh && <span> · Last update: {lastRefresh.toLocaleTimeString()}</span>}
         </div>
       )}
+
+      </>}
     </div>
   )
 }
