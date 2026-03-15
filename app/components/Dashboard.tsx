@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import JarvisAIAgent from './JarvisAIAgent'
+import { SearchModal } from './SearchModal'
+import { useSearchShortcut } from '../hooks/useSearchShortcut'
 
 interface Chat {
   id: string
@@ -575,9 +577,13 @@ function ModelBadge() {
 // ── Main dashboard ────────────────────────────────────────────────────────────
 
 export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) {
+  const [searchOpen, setSearchOpen] = useState(false)
+  useSearchShortcut(() => setSearchOpen(true))
 
   return (
-    <div className="min-h-full bg-[#0f0f0f]">
+    <>
+      <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
+      <div className="min-h-full bg-[#0f0f0f]">
       <div className="max-w-4xl w-full mx-auto p-4 md:p-6 space-y-5">
 
         {/* Greeting */}
@@ -590,7 +596,18 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
               {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
-          <ModelBadge />
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setSearchOpen(true)}
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#141414] border border-[#2a2a2a] rounded-lg hover:border-[#00ff88]/50 transition-colors text-xs text-gray-400 hover:text-gray-300"
+              title="Press Cmd+K or Ctrl+K"
+            >
+              <span>🔍</span>
+              <span className="hidden md:inline">Search</span>
+              <span className="text-[10px] text-gray-600 ml-1 hidden md:inline">⌘K</span>
+            </button>
+            <ModelBadge />
+          </div>
         </div>
 
         {/* Quick stats row */}
@@ -619,5 +636,6 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
 
       </div>
     </div>
+    </>
   )
 }
