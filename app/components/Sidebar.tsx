@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research' | 'settings'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research' | 'settings' | 'orders'
 
 interface Props {
   activeNav: NavItem
