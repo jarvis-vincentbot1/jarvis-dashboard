@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research'
 
 interface Props {
   activeNav: NavItem
@@ -97,6 +97,15 @@ function InventoryIcon({ active }: { active: boolean }) {
   )
 }
 
+function ResearchIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
+
 function UsageIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
@@ -132,10 +141,11 @@ const NAV_GROUPS: {
   {
     label: 'Monitor',
     items: [
-      { id: 'prices',        label: 'Hardware',   Icon: GpuIcon },
-      { id: 'gpu-inventory', label: 'GPU Stock',  Icon: InventoryIcon },
-      { id: 'monitoring',    label: 'Servers',    Icon: MonitorIcon },
-      { id: 'usage',         label: 'API Usage',  Icon: UsageIcon },
+      { id: 'prices',            label: 'Hardware',        Icon: GpuIcon },
+      { id: 'product-research',  label: 'Product Research', Icon: ResearchIcon },
+      { id: 'gpu-inventory',     label: 'GPU Stock',        Icon: InventoryIcon },
+      { id: 'monitoring',        label: 'Servers',         Icon: MonitorIcon },
+      { id: 'usage',             label: 'API Usage',        Icon: UsageIcon },
     ],
   },
   {

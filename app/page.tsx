@@ -175,6 +175,8 @@ export default function DashboardPage() {
               <PriceTracker />
               <TrustedSuppliers />
             </>
+          ) : activeNav === 'product-research' ? (
+            <PriceTracker />
           ) : activeNav === 'supervisor' ? (
             <Supervisor />
           ) : activeNav === 'usage' ? (
