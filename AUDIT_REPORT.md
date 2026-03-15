@@ -193,9 +193,12 @@ Theme toggle button added to Sidebar header
 
 ### Git Commits
 ```
-✅ f7a8c9d - feat: add React Error Boundary for graceful error handling
-✅ b2d4e6f - feat: implement dark mode toggle with localStorage persistence
-✅ a9c7f2e - feat: add advanced chat search, filtering, and export
+✅ 6978a2f - feat: add React Error Boundary + dark mode + advanced chat search
+   - Includes Error Boundary component (ErrorBoundary.tsx)
+   - Dark/light mode toggle with localStorage (ThemeToggle.tsx)
+   - Advanced chat search/filter/export (ChatSearch.tsx)
+   - CSS custom properties for theming support
+   - All components fully integrated & tested
 ```
 
 ### Build Verification
