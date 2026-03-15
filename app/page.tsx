@@ -12,6 +12,7 @@ import PriceTracker from './components/PriceTracker'
 import TrustedSuppliers from './components/TrustedSuppliers'
 import Supervisor from './components/Supervisor'
 import APIUsage from './components/APIUsage'
+import GPUInventory from './components/GPUInventory'
 
 interface Chat {
   id: string
@@ -178,6 +179,8 @@ export default function DashboardPage() {
             <Supervisor />
           ) : activeNav === 'usage' ? (
             <APIUsage />
+          ) : activeNav === 'gpu-inventory' ? (
+            <GPUInventory />
           ) : (
             <TodoPanel />
           )}
