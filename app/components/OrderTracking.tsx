@@ -24,9 +24,17 @@ export default function OrderTracking() {
   const [boxes, setBoxes] = useState<Box[]>([])
   const [serialInput, setSerialInput] = useState('')
   const [supplierInput, setSupplierInput] = useState('Megekko')
+  const [customSupplier, setCustomSupplier] = useState('')
+  const [suppliers, setSuppliers] = useState(['Megekko', 'Paradigit', 'Coolblue', 'Amazon', 'Alternate', 'MediaMarkt', 'Bol', 'Cyberport'])
   const [currentBox, setCurrentBox] = useState<string | null>(null)
 
-  const suppliers = ['Megekko', 'Paradigit', 'Coolblue', 'Amazon', 'Alternate', 'MediaMarkt', 'Bol', 'Cyberport']
+  const addSupplier = () => {
+    if (customSupplier.trim() && !suppliers.includes(customSupplier)) {
+      setSuppliers([...suppliers, customSupplier])
+      setSupplierInput(customSupplier)
+      setCustomSupplier('')
+    }
+  }
 
   const addGPU = () => {
     if (!serialInput.trim()) return
@@ -85,31 +93,54 @@ export default function OrderTracking() {
       <h1 className="text-2xl font-bold text-white">Order Tracking</h1>
 
       {/* Quick Scan */}
-      <div className="bg-[#141414] border border-[#00ff88]/20 rounded-xl p-6">
-        <h2 className="text-white text-lg font-semibold mb-4">Scan GPU Serial</h2>
-        <div className="flex gap-3 flex-wrap">
-          <input
-            type="text"
-            placeholder="Scan or type serial number"
-            value={serialInput}
-            onChange={(e) => setSerialInput(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && addGPU()}
-            className="flex-1 min-w-48 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-[#00ff88]"
-            autoFocus
-          />
-          <select
-            value={supplierInput}
-            onChange={(e) => setSupplierInput(e.target.value)}
-            className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-[#00ff88]"
-          >
-            {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
-          </select>
-          <button
-            onClick={addGPU}
-            className="bg-[#00ff88] text-black font-semibold px-6 py-3 rounded-lg hover:bg-[#00dd77]"
-          >
-            Add
-          </button>
+      <div className="bg-[#141414] border border-[#00ff88]/20 rounded-xl p-6 space-y-4">
+        <div>
+          <h2 className="text-white text-lg font-semibold mb-4">Scan GPU Serial</h2>
+          <div className="flex gap-3 flex-wrap">
+            <input
+              type="text"
+              placeholder="Scan or type serial number"
+              value={serialInput}
+              onChange={(e) => setSerialInput(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addGPU()}
+              className="flex-1 min-w-48 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-[#00ff88]"
+              autoFocus
+            />
+            <select
+              value={supplierInput}
+              onChange={(e) => setSupplierInput(e.target.value)}
+              className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-3 text-gray-100 focus:outline-none focus:border-[#00ff88]"
+            >
+              {suppliers.map(s => <option key={s} value={s}>{s}</option>)}
+            </select>
+            <button
+              onClick={addGPU}
+              className="bg-[#00ff88] text-black font-semibold px-6 py-3 rounded-lg hover:bg-[#00dd77]"
+            >
+              Add
+            </button>
+          </div>
+        </div>
+
+        {/* Add new supplier */}
+        <div className="border-t border-[#00ff88]/10 pt-4">
+          <h3 className="text-gray-300 text-sm font-semibold mb-3">Add New Supplier</h3>
+          <div className="flex gap-3">
+            <input
+              type="text"
+              placeholder="Supplier name"
+              value={customSupplier}
+              onChange={(e) => setCustomSupplier(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && addSupplier()}
+              className="flex-1 bg-[#1a1a1a] border border-[#2a2a2a] rounded-lg px-4 py-2 text-gray-100 text-sm focus:outline-none focus:border-[#00ff88]"
+            />
+            <button
+              onClick={addSupplier}
+              className="bg-[#00d4ff]/20 hover:bg-[#00d4ff]/30 text-[#00d4ff] px-4 py-2 rounded-lg text-sm font-medium"
+            >
+              Add
+            </button>
+          </div>
         </div>
       </div>
 
