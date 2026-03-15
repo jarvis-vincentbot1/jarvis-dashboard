@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import JarvisAIAgent from './JarvisAIAgent'
+import QuickActionBar from './QuickActionBar'
 
 interface Chat {
   id: string
@@ -576,6 +577,23 @@ function ModelBadge() {
 
 export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) {
 
+  function handleQuickAction(action: 'search' | 'usage' | 'job' | 'alerts') {
+    switch (action) {
+      case 'search':
+        onNavChange?.('chat')
+        break
+      case 'usage':
+        onNavChange?.('usage')
+        break
+      case 'job':
+        onNavChange?.('jobs')
+        break
+      case 'alerts':
+        onNavChange?.('alerts')
+        break
+    }
+  }
+
   return (
     <div className="min-h-full bg-[#0f0f0f]">
       <div className="max-w-4xl w-full mx-auto p-4 md:p-6 space-y-5">
@@ -592,6 +610,9 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
           </div>
           <ModelBadge />
         </div>
+
+        {/* Quick action bar */}
+        <QuickActionBar onActionClick={handleQuickAction} />
 
         {/* Quick stats row */}
         <QuickStatsRow allChats={allChats} onNavChange={onNavChange} />

@@ -131,7 +131,7 @@ export async function POST(request: Request) {
     })
     const quickReply = todos.length === 0
       ? 'No open to-dos.'
-      : `**Open to-dos:**\n${todos.map((t, i) => `${i + 1}. ${t.text}`).join('\n')}`
+      : `**Open to-dos:**\n${todos.map((t: { text: string }, i: number) => `${i + 1}. ${t.text}`).join('\n')}`
     return NextResponse.json({ quickReply })
   }
 
@@ -139,7 +139,7 @@ export async function POST(request: Request) {
   if (doneMatch) {
     const search = doneMatch[1].trim().toLowerCase()
     const todos = await prisma.todo.findMany({ where: { done: false } })
-    const match = todos.find((t) => t.text.toLowerCase().includes(search))
+    const match = todos.find((t: { id: string; text: string }) => t.text.toLowerCase().includes(search))
     if (match) {
       await prisma.todo.update({ where: { id: match.id }, data: { done: true } })
       return NextResponse.json({ quickReply: `Done: ${match.text} ✅` })
@@ -184,7 +184,7 @@ export async function POST(request: Request) {
   // Default to local Ollama; auto-escalate to Claude if task warrants it
   const baseModel = model || 'ollama/qwen2.5:7b'
   const historyForRouting = (await prisma.message.findMany({ where: { chatId }, orderBy: { createdAt: 'desc' }, take: 5 }))
-    .map(m => ({ role: m.role, content: m.content }))
+    .map((m: { role: string; content: string }) => ({ role: m.role, content: m.content }))
   const selectedModel = (!model && shouldEscalateToClaude(trimmed, historyForRouting))
     ? 'anthropic/claude-sonnet-4-6'
     : baseModel
@@ -196,7 +196,7 @@ export async function POST(request: Request) {
     | { type: 'text'; text: string }
     | { type: 'image_url'; image_url: { url: string } }
 
-  const baseMessages = history.slice(0, -1).map((msg) => ({
+  const baseMessages = history.slice(0, -1).map((msg: { role: string; content: string }) => ({
     role: msg.role as 'user' | 'assistant',
     content: msg.content,
   }))
