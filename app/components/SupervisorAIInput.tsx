@@ -21,7 +21,7 @@ export default function SupervisorAIInput({ onGenerate }: SupervisorAIInputProps
 
     const SpeechRecognition =
       typeof window !== 'undefined' &&
-      (window.webkitSpeechRecognition || (window as any).SpeechRecognition)
+      ((window as any).webkitSpeechRecognition || (window as any).SpeechRecognition)
 
     if (!SpeechRecognition) {
       setError('Speech Recognition API not supported in your browser')
