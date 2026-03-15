@@ -419,9 +419,16 @@ export default function APIUsage() {
         throw new Error(`API error: ${res.status}`)
       }
       const result = await res.json()
-      setData(result)
+      
+      // Check if API returned an error field (Anthropic endpoint unavailable)
+      if (result.error === 'anthropic_endpoint_unavailable') {
+        setError(result.message || 'Anthropic endpoint not available')
+        setData(result) // Still set data for display consistency
+      } else {
+        setData(result)
+        setError(null)
+      }
       setLastRefresh(new Date())
-      setError(null)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch usage data')
       console.error('Usage fetch error:', err)
