@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import JarvisAIAgent from './JarvisAIAgent'
+import QuickActionBar from './QuickActionBar'
 import { SearchModal } from './SearchModal'
 import { useSearchShortcut } from '../hooks/useSearchShortcut'
 
@@ -580,6 +581,23 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
   const [searchOpen, setSearchOpen] = useState(false)
   useSearchShortcut(() => setSearchOpen(true))
 
+  function handleQuickAction(action: 'search' | 'usage' | 'job' | 'alerts') {
+    switch (action) {
+      case 'search':
+        setSearchOpen(true)
+        break
+      case 'usage':
+        onNavChange?.('usage')
+        break
+      case 'job':
+        onNavChange?.('jobs')
+        break
+      case 'alerts':
+        onNavChange?.('alerts')
+        break
+    }
+  }
+
   return (
     <>
       <SearchModal isOpen={searchOpen} onClose={() => setSearchOpen(false)} />
@@ -596,19 +614,11 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
               {new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-[#141414] border border-[#2a2a2a] rounded-lg hover:border-[#00ff88]/50 transition-colors text-xs text-gray-400 hover:text-gray-300"
-              title="Press Cmd+K or Ctrl+K"
-            >
-              <span>🔍</span>
-              <span className="hidden md:inline">Search</span>
-              <span className="text-[10px] text-gray-600 ml-1 hidden md:inline">⌘K</span>
-            </button>
-            <ModelBadge />
-          </div>
+          <ModelBadge />
         </div>
+
+        {/* Quick action bar */}
+        <QuickActionBar onActionClick={handleQuickAction} />
 
         {/* Quick stats row */}
         <QuickStatsRow allChats={allChats} onNavChange={onNavChange} />
