@@ -568,8 +568,24 @@ export default function APIUsage() {
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <div>
-            <p className="text-red-400 font-medium">Failed to load usage data</p>
-            <p className="text-red-400/60 text-xs mt-0.5">{error} — will retry automatically</p>
+            <p className="text-red-400 font-medium">Anthropic API usage endpoint not available</p>
+            <p className="text-red-400/60 text-xs mt-0.5">Note: Anthropic does not expose /v1/usage endpoint. See billing dashboard at https://console.anthropic.com for actual usage data.</p>
+          </div>
+        </div>
+      )}
+
+      {/* Manual credit input fallback */}
+      {!data && !loading && !error && (
+        <div className="bg-[#141414] border border-[#00ff88]/20 rounded-xl p-6 space-y-4">
+          <div>
+            <h3 className="text-white text-sm font-semibold mb-2">No API Data Available</h3>
+            <p className="text-gray-500 text-xs mb-4">
+              The Anthropic /v1/usage endpoint is not publicly available. 
+              <br />
+              <a href="https://console.anthropic.com" target="_blank" rel="noopener noreferrer" className="text-[#00ff88] hover:underline">
+                Check your actual usage at https://console.anthropic.com →
+              </a>
+            </p>
           </div>
         </div>
       )}
