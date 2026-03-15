@@ -11,15 +11,28 @@ interface CalcEntry {
   marginPct: number
 }
 
+interface RateCache {
+  rate: number
+  timestamp: number
+}
+
 const STORAGE_KEY = 'vat-calc-history'
+const RATE_STORAGE_KEY = 'vat-eur-usd-rate'
 const VAT_RATE = 0.21
+const DEFAULT_RATE = 1.09
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24h
+
+type RateStatus = 'live' | 'cached' | 'fallback'
 
 export default function VatCalculator() {
   const [buyEur, setBuyEur] = useState('')
   const [sellUsd, setSellUsd] = useState('')
   const [quantity, setQuantity] = useState('1')
-  const [rate, setRate] = useState('1.09')
+  const [rate, setRate] = useState(String(DEFAULT_RATE))
   const [history, setHistory] = useState<CalcEntry[]>([])
+  const [rateStatus, setRateStatus] = useState<RateStatus>('fallback')
+  const [rateUpdatedAt, setRateUpdatedAt] = useState<number | null>(null)
+  const [rateFetching, setRateFetching] = useState(false)
 
   // Refs to read DOM values directly — catches browser autofill & value-memory
   const buyRef = useRef<HTMLInputElement>(null)
@@ -27,11 +40,62 @@ export default function VatCalculator() {
   const qtyRef = useRef<HTMLInputElement>(null)
   const rateRef = useRef<HTMLInputElement>(null)
 
+  async function fetchExchangeRate(force = false) {
+    // Try cache first (unless forced)
+    if (!force) {
+      try {
+        const cached = localStorage.getItem(RATE_STORAGE_KEY)
+        if (cached) {
+          const { rate: cachedRate, timestamp }: RateCache = JSON.parse(cached)
+          if (Date.now() - timestamp < CACHE_TTL_MS) {
+            setRate(String(cachedRate))
+            setRateStatus('cached')
+            setRateUpdatedAt(timestamp)
+            return
+          }
+        }
+      } catch {}
+    }
+
+    setRateFetching(true)
+    try {
+      const res = await fetch('https://api.frankfurter.app/latest?from=EUR&to=USD')
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      const data = await res.json()
+      const newRate: number = data.rates.USD
+      const now = Date.now()
+      const cache: RateCache = { rate: newRate, timestamp: now }
+      try { localStorage.setItem(RATE_STORAGE_KEY, JSON.stringify(cache)) } catch {}
+      setRate(String(newRate))
+      setRateStatus('live')
+      setRateUpdatedAt(now)
+    } catch {
+      // Fallback: use any cached value even if stale
+      try {
+        const cached = localStorage.getItem(RATE_STORAGE_KEY)
+        if (cached) {
+          const { rate: cachedRate, timestamp }: RateCache = JSON.parse(cached)
+          setRate(String(cachedRate))
+          setRateStatus('cached')
+          setRateUpdatedAt(timestamp)
+          return
+        }
+      } catch {}
+      // Last resort: hardcoded default
+      setRate(String(DEFAULT_RATE))
+      setRateStatus('fallback')
+    } finally {
+      setRateFetching(false)
+    }
+  }
+
   useEffect(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY)
       if (saved) setHistory(JSON.parse(saved))
     } catch {}
+
+    fetchExchangeRate()
 
     // Poll every 300ms for autofill / browser-remembered values
     const interval = setInterval(() => {
@@ -53,7 +117,7 @@ export default function VatCalculator() {
   const buy = parseFloat(buyEur.replace(',', '.')) || 0
   const sell = parseFloat(sellUsd.replace(',', '.')) || 0
   const qty = Math.max(1, parseInt(quantity) || 1)
-  const eurUsd = parseFloat(rate.replace(',', '.')) || 1.09
+  const eurUsd = parseFloat(rate.replace(',', '.')) || DEFAULT_RATE
 
   const buyExclVat = buy / (1 + VAT_RATE)
   const vatPerUnit = buy - buyExclVat
@@ -98,8 +162,22 @@ export default function VatCalculator() {
     return new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   }
 
+  function fmtUpdatedAt(ts: number) {
+    const diff = Date.now() - ts
+    if (diff < 60_000) return 'just now'
+    if (diff < 3_600_000) return `${Math.floor(diff / 60_000)}m ago`
+    if (diff < 86_400_000) return `${Math.floor(diff / 3_600_000)}h ago`
+    return fmtDate(new Date(ts).toISOString())
+  }
+
   // Shared input class
   const inputCls = 'w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-3 text-white text-base focus:outline-none focus:border-[#00ff88] transition-colors'
+
+  const statusBadge = {
+    live: <span className="text-[10px] font-semibold bg-[#00ff88]/15 text-[#00ff88] rounded px-1.5 py-0.5 leading-none">● Live</span>,
+    cached: <span className="text-[10px] font-semibold bg-yellow-500/15 text-yellow-400 rounded px-1.5 py-0.5 leading-none">◷ Cached</span>,
+    fallback: <span className="text-[10px] font-semibold bg-red-500/15 text-red-400 rounded px-1.5 py-0.5 leading-none">⚠ Fallback</span>,
+  }[rateStatus]
 
   return (
     <div className="min-h-full bg-[#0f0f0f]">
@@ -162,9 +240,19 @@ export default function VatCalculator() {
               />
             </div>
             <div>
-              <label className="block text-gray-500 text-xs mb-1">
-                EUR/USD <span className="text-yellow-500">— manual</span>
-              </label>
+              <div className="flex items-center justify-between mb-1">
+                <label className="text-gray-500 text-xs flex items-center gap-1.5">
+                  EUR/USD {statusBadge}
+                </label>
+                <button
+                  onClick={() => fetchExchangeRate(true)}
+                  disabled={rateFetching}
+                  className="text-[10px] text-gray-600 active:text-[#00ff88] disabled:opacity-40 transition-colors leading-none"
+                  title="Refresh rate"
+                >
+                  {rateFetching ? '⟳ loading…' : '⟳ refresh'}
+                </button>
+              </div>
               <input
                 ref={rateRef}
                 inputMode="decimal"
@@ -174,6 +262,9 @@ export default function VatCalculator() {
                 onBlur={(e) => setRate(e.target.value)}
                 className={inputCls}
               />
+              {rateUpdatedAt && (
+                <p className="text-[10px] text-gray-600 mt-1">Updated {fmtUpdatedAt(rateUpdatedAt)}</p>
+              )}
             </div>
           </div>
         </div>

@@ -77,6 +77,35 @@ model PriceEntry {
   @@index([scrapedAt])
 }
 
+model GPU {
+  id           String    @id @default(cuid())
+  model        String
+  supplier     String
+  serialNumber String    @unique
+  purchaseDate DateTime?
+  cost         Float?
+  status       String    @default("In Stock")
+  boxId        String?
+  box          Box?      @relation(fields: [boxId], references: [id])
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([boxId])
+  @@index([status])
+}
+
+model Box {
+  id          String   @id @default(cuid())
+  name        String
+  destination String?
+  status      String   @default("Packing")
+  notes       String?
+  gpus        GPU[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model Run {
   id        String    @id @default(cuid())
   title     String
@@ -104,4 +133,20 @@ model RunStep {
   updatedAt      DateTime @updatedAt
 
   @@index([runId])
+}
+
+model Credit {
+  id        String   @id @default(cuid())
+  date      String   // YYYY-MM-DD
+  model     String
+  totalCost Float
+  timeframe String   @default("daily")
+  source    String   @default("openclaw")
+  timestamp DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([date, model, source])
+  @@index([date])
+  @@index([source])
 }

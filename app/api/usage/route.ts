@@ -38,96 +38,26 @@ export async function GET(request: Request) {
   })()
 
   try {
-    const res = await fetch(
-      `https://api.anthropic.com/v1/usage?start_date=${start}&end_date=${end}`,
-      {
-        headers: {
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
-          'anthropic-version': '2023-06-01',
-        },
-        signal: AbortSignal.timeout(8000),
-      }
-    )
-
-    if (!res.ok) {
-      console.error('Anthropic API error:', res.status, res.statusText)
-      return NextResponse.json({ error: 'Anthropic API error' }, { status: res.status })
-    }
-
-    const data = await res.json()
+    // NOTE: Anthropic's /v1/usage endpoint is not publicly available.
+    // This is a known limitation of the Anthropic API.
+    // Return error signal for UI to show fallback message
     
-    // Anthropic usage API returns: { data: [ { date: "2026-03-15", model: "claude-opus-4-1", input_tokens: X, output_tokens: Y }, ... ] }
-    const usageData: Array<{ date: string; model: string; input_tokens: number; output_tokens: number }> = 
-      data.data || data.usage_by_model || []
-
-    // Aggregate by date and model
-    const byDateModel: Record<string, Record<string, { input_tokens: number; output_tokens: number }>> = {}
+    console.warn('Anthropic /v1/usage endpoint is not available (API limitation)')
     
-    for (const entry of usageData) {
-      if (!entry.date || !entry.model) continue
-      if (!byDateModel[entry.date]) byDateModel[entry.date] = {}
-      
-      const modelKey = getModelKey(entry.model)
-      if (!byDateModel[entry.date][modelKey]) {
-        byDateModel[entry.date][modelKey] = { input_tokens: 0, output_tokens: 0 }
-      }
-      
-      byDateModel[entry.date][modelKey].input_tokens += entry.input_tokens || 0
-      byDateModel[entry.date][modelKey].output_tokens += entry.output_tokens || 0
-    }
-
-    // Convert to daily breakdown array
-    const daily = Object.entries(byDateModel)
-      .map(([date, models]) => {
-        const engines: Record<string, { inputTokens: number; outputTokens: number; cost: number }> = {}
-        let totalCost = 0
-        
-        for (const [modelKey, tokens] of Object.entries(models)) {
-          const cost = estimateCost(tokens.input_tokens, tokens.output_tokens, modelKey)
-          engines[modelKey] = {
-            inputTokens: tokens.input_tokens,
-            outputTokens: tokens.output_tokens,
-            cost,
-          }
-          totalCost += cost
-        }
-        
-        return { date, engines, totalCost }
-      })
-      .sort((a, b) => a.date.localeCompare(b.date))
-
-    // Compute totals
-    let totalInputTokens = 0
-    let totalOutputTokens = 0
-    let grandTotal = 0
-    const engineTotals: Record<string, { cost: number; inputTokens: number; outputTokens: number }> = {}
-
-    for (const day of daily) {
-      for (const [modelKey, usage] of Object.entries(day.engines)) {
-        totalInputTokens += usage.inputTokens
-        totalOutputTokens += usage.outputTokens
-        grandTotal += usage.cost
-
-        if (!engineTotals[modelKey]) {
-          engineTotals[modelKey] = { cost: 0, inputTokens: 0, outputTokens: 0 }
-        }
-        engineTotals[modelKey].cost += usage.cost
-        engineTotals[modelKey].inputTokens += usage.inputTokens
-        engineTotals[modelKey].outputTokens += usage.outputTokens
-      }
-    }
-
+    // Return special error response that frontend will catch
     return NextResponse.json({
+      error: 'anthropic_endpoint_unavailable',
+      message: 'Anthropic does not expose /v1/usage endpoint. Check https://console.anthropic.com for billing data.',
       start_date: start,
       end_date: end,
-      input_tokens: totalInputTokens,
-      output_tokens: totalOutputTokens,
-      total_tokens: totalInputTokens + totalOutputTokens,
-      cost_usd: Math.round(grandTotal * 10000) / 10000,
-      daily,
-      engines: engineTotals,
+      input_tokens: 0,
+      output_tokens: 0,
+      total_tokens: 0,
+      cost_usd: 0,
+      daily: [],
+      engines: {},
       cached_at: new Date().toISOString(),
-    })
+    }, { status: 200 }) // Status 200 so frontend can handle gracefully
   } catch (err) {
     console.error('Usage API error:', err)
     return NextResponse.json({ error: 'Failed to fetch usage data' }, { status: 500 })

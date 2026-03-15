@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research' | 'settings' | 'orders'
 
 interface Props {
   activeNav: NavItem
@@ -87,12 +87,40 @@ function CalcIcon({ active }: { active: boolean }) {
   )
 }
 
+function InventoryIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z" />
+      <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
+      <line x1="12" y1="22.08" x2="12" y2="12" />
+    </svg>
+  )
+}
+
+function ResearchIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.35-4.35" />
+    </svg>
+  )
+}
+
 function UsageIcon({ active }: { active: boolean }) {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2L2 7l10 5 10-5-10-5z" />
       <path d="M2 17l10 5 10-5" />
       <path d="M2 12l10 5 10-5" />
+    </svg>
+  )
+}
+
+function SettingsIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="3" />
+      <path d="M12 1v6m0 6v6M4.22 4.22l4.24 4.24m5.08 5.08l4.24 4.24M1 12h6m6 0h6M4.22 19.78l4.24-4.24m5.08-5.08l4.24-4.24" />
     </svg>
   )
 }
@@ -120,19 +148,26 @@ const NAV_GROUPS: {
     ],
   },
   {
-    label: 'Monitor',
+    label: 'Build',
     items: [
-      { id: 'prices',    label: 'Hardware',   Icon: GpuIcon },
-      { id: 'monitoring',label: 'Servers',    Icon: MonitorIcon },
-      { id: 'usage',     label: 'API Usage',  Icon: UsageIcon },
+      { id: 'product-research', label: 'Product Research', Icon: ResearchIcon },
+      { id: 'calculator',       label: 'Calculator',       Icon: CalcIcon },
     ],
   },
   {
-    label: 'Tools',
+    label: 'Monitor',
     items: [
-      { id: 'supervisor',label: 'Supervisor', Icon: SupervisorIcon },
+      { id: 'monitoring', label: 'Servers',      Icon: MonitorIcon },
+      { id: 'usage',      label: 'API Usage',    Icon: UsageIcon },
+      { id: 'supervisor', label: 'Automation',   Icon: SupervisorIcon },
+    ],
+  },
+  {
+    label: 'Manage',
+    items: [
+      { id: 'orders',    label: 'Orders',     Icon: TodoIcon },
       { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
-      { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
+      { id: 'settings',  label: 'Settings',   Icon: SettingsIcon },
     ],
   },
 ]
