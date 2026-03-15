@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import JarvisAIAgent from './JarvisAIAgent'
 
 interface Chat {
   id: string
@@ -594,6 +595,9 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
 
         {/* Quick stats row */}
         <QuickStatsRow allChats={allChats} onNavChange={onNavChange} />
+
+        {/* Jarvis AI Agent */}
+        <JarvisAIAgent />
 
         {/* AI Status + Usage row */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

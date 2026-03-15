@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import SupervisorAIInput from './SupervisorAIInput'
 
 interface RunStep {
   id: string
@@ -257,6 +258,11 @@ export default function Supervisor() {
         <p className="text-xs text-gray-400 leading-relaxed">
           Supervisor runs multi-step AI tasks sequentially. Each step can use a different model and optionally require your approval before proceeding. Failed steps can be retried.
         </p>
+      </div>
+
+      {/* AI Input Section */}
+      <div className="px-4 md:px-6 py-4 border-b border-white/5">
+        <SupervisorAIInput />
       </div>
 
       {/* Run list */}
