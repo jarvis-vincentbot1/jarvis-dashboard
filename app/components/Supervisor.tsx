@@ -225,10 +225,17 @@ export default function Supervisor() {
   return (
     <div className="flex flex-col h-full min-h-0 bg-[#0f0f0f]">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-white/5 flex-shrink-0">
-        <div>
-          <h1 className="text-white font-semibold text-lg tracking-wide">Supervisor</h1>
-          <p className="text-gray-500 text-xs mt-0.5">Multi-step AI runs with review &amp; retry</p>
+      <div className="flex items-center justify-between px-4 md:px-6 py-4 border-b border-white/5 flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Status indicator */}
+          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#00ff88]/10 border border-[#00ff88]/20">
+            <span className="w-2 h-2 rounded-full bg-[#00ff88] shadow-[0_0_6px_#00ff88]" />
+            <span className="text-[#00ff88] text-xs font-semibold">Active</span>
+          </div>
+          <div>
+            <h1 className="text-white font-semibold text-lg tracking-wide">Supervisor</h1>
+            <p className="text-gray-500 text-xs mt-0.5">Multi-step AI runs with review &amp; retry</p>
+          </div>
         </div>
         <button
           onClick={() => setShowModal(true)}
@@ -242,18 +249,49 @@ export default function Supervisor() {
         </button>
       </div>
 
+      {/* Info box */}
+      <div className="mx-4 md:mx-6 mt-4 px-4 py-3 rounded-xl bg-[#1a1a1a] border border-white/5 flex items-start gap-3 flex-shrink-0">
+        <svg className="w-4 h-4 text-[#a855f7] flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+        </svg>
+        <p className="text-xs text-gray-400 leading-relaxed">
+          Supervisor runs multi-step AI tasks sequentially. Each step can use a different model and optionally require your approval before proceeding. Failed steps can be retried.
+        </p>
+      </div>
+
       {/* Run list */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
         {loading ? (
-          <div className="flex justify-center py-16">
-            <div className="w-6 h-6 border-2 border-[#00ff88] border-t-transparent rounded-full animate-spin" />
+          <div className="space-y-3">
+            {[0, 1, 2].map(i => (
+              <div key={i} className="rounded-xl p-4 animate-pulse" style={{ background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.06)' }}>
+                <div className="flex items-center gap-3">
+                  <div className="w-4 h-4 bg-[#2a2a2a] rounded" />
+                  <div className="flex-1 space-y-1.5">
+                    <div className="h-3.5 bg-[#2a2a2a] rounded w-2/5" />
+                    <div className="h-2.5 bg-[#2a2a2a] rounded w-1/4" />
+                  </div>
+                  <div className="w-16 h-6 bg-[#2a2a2a] rounded-full" />
+                </div>
+              </div>
+            ))}
           </div>
         ) : runs.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-20 text-gray-600">
+          <div className="flex flex-col items-center justify-center py-16 text-gray-600">
             <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" className="mb-3 opacity-40">
               <polygon points="5 3 19 12 5 21 5 3" />
             </svg>
-            <p className="text-sm">No runs yet. Create one to get started.</p>
+            <p className="text-sm font-medium text-gray-500 mb-1">No runs yet</p>
+            <p className="text-xs text-gray-600 text-center max-w-xs leading-relaxed">
+              Create your first run to start automating multi-step AI tasks.
+            </p>
+            <button
+              onClick={() => setShowModal(true)}
+              className="mt-4 px-4 py-2 rounded-lg text-sm font-medium transition-all"
+              style={{ background: 'rgba(0,255,136,0.1)', color: '#00ff88', border: '1px solid rgba(0,255,136,0.15)' }}
+            >
+              Create first run
+            </button>
           </div>
         ) : (
           runs.map(run => (

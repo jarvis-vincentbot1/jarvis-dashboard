@@ -1,6 +1,8 @@
 'use client'
 
 import { useState, useMemo, useEffect } from 'react'
+import { ChartSkeleton, CardSkeleton } from './SkeletonLoader'
+import { DataUnavailableError } from './ErrorState'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -226,6 +228,53 @@ export default function APIUsage() {
   const engineTotals = useMemo(() => data?.engines ?? {}, [data])
   const grandTotal = useMemo(() => data?.cost_usd ?? 0, [data])
 
+  // Trend: compare last 7 days vs prior 7 days
+  const trend = useMemo(() => {
+    if (!data?.daily || data.daily.length < 2) return null
+    const sorted = [...data.daily].sort((a, b) => a.date.localeCompare(b.date))
+    const last7 = sorted.slice(-7).reduce((s, d) => s + d.totalCost, 0)
+    const prior7 = sorted.slice(-14, -7).reduce((s, d) => s + d.totalCost, 0)
+    if (prior7 === 0) return null
+    const pct = ((last7 - prior7) / prior7) * 100
+    return { pct, up: pct > 0 }
+  }, [data])
+
+  // Full skeleton while no data yet
+  if (loading && !data) {
+    return (
+      <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="skeleton w-8 h-8 rounded-lg" />
+          <div className="space-y-1.5">
+            <div className="skeleton h-5 w-28" />
+            <div className="skeleton h-3 w-44" />
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="bg-[#141414] border border-white/5 rounded-xl p-4 space-y-2">
+              <div className="skeleton h-3 w-20" />
+              <div className="skeleton h-7 w-16" />
+              <div className="skeleton h-2.5 w-12" />
+            </div>
+          ))}
+        </div>
+        <div className="bg-[#141414] border border-white/5 rounded-xl p-4 md:p-5">
+          <div className="skeleton h-4 w-32 mb-4" />
+          <div className="skeleton w-full h-32" />
+        </div>
+        <div className="bg-[#141414] border border-white/5 rounded-xl p-4 space-y-3">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <div className="skeleton h-4 w-1/3" />
+              <div className="skeleton h-1.5 w-full" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto space-y-6">
       {/* Header */}
@@ -239,7 +288,7 @@ export default function APIUsage() {
             <p className="text-gray-500 text-xs">
               30-day window · Live tracking
               {lastRefresh && <span> · Updated {lastRefresh.toLocaleTimeString()}</span>}
-              {loading && <span className="animate-pulse"> · Refreshing...</span>}
+              {loading && <span className="text-[#00ff88]/60"> · Refreshing…</span>}
             </p>
           </div>
         </div>
@@ -262,10 +311,58 @@ export default function APIUsage() {
         </div>
       </div>
 
-      {/* Stats row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {/* Error banner */}
+      {error && (
+        <div className="bg-[#141414] border border-red-500/20 rounded-xl p-4 flex items-start gap-3 text-sm">
+          <svg className="w-4 h-4 text-red-400 flex-shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <div>
+            <p className="text-red-400 font-medium">Failed to load usage data</p>
+            <p className="text-red-400/60 text-xs mt-0.5">{error} — will retry automatically</p>
+          </div>
+        </div>
+      )}
+
+      {/* Hero: Total Spend */}
+      <div
+        className="rounded-xl p-5 md:p-6 relative overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #0d1f15 0%, #0f1a2e 50%, #1a0d2e 100%)',
+          border: '1px solid rgba(0,255,136,0.15)',
+        }}
+      >
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="absolute -top-8 -left-8 w-32 h-32 rounded-full opacity-20" style={{ background: 'radial-gradient(circle, #00ff88, transparent 70%)' }} />
+          <div className="absolute -bottom-8 -right-8 w-40 h-40 rounded-full opacity-10" style={{ background: 'radial-gradient(circle, #a855f7, transparent 70%)' }} />
+        </div>
+        <div className="relative">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[#00ff88]/70 mb-2">
+            Total Spend — 30 days
+          </p>
+          <div className="flex items-end gap-4 flex-wrap">
+            <span className="text-4xl md:text-5xl font-bold text-white tabular-nums leading-none">
+              ${grandTotal.toFixed(2)}
+            </span>
+            {trend && (
+              <span
+                className={`flex items-center gap-1 text-sm font-semibold px-2 py-0.5 rounded-full mb-1 ${
+                  trend.up ? 'text-red-400 bg-red-400/10' : 'text-[#00ff88] bg-[#00ff88]/10'
+                }`}
+              >
+                {trend.up ? '↑' : '↓'} {Math.abs(trend.pct).toFixed(1)}% vs prior 7d
+              </span>
+            )}
+          </div>
+          <p className="text-gray-500 text-xs mt-2">
+            Avg ${(grandTotal / 30).toFixed(4)}/day · {fmtTokens(totalInput + totalOutput)} total tokens
+          </p>
+        </div>
+      </div>
+
+      {/* Secondary metrics */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {[
-          { label: 'Total spend', value: `$${totalSpend.toFixed(2)}`, sub: '30 days' },
           { label: 'Input tokens', value: fmtTokens(totalInput), sub: 'all engines' },
           { label: 'Output tokens', value: fmtTokens(totalOutput), sub: 'all engines' },
           { label: 'Avg / day', value: `$${(grandTotal / 30).toFixed(3)}`, sub: 'last 30d' },
@@ -334,26 +431,12 @@ export default function APIUsage() {
         </div>
       </div>
 
-      {/* Error state */}
-      {error && (
-        <div className="bg-[#141414] border border-red-500/30 rounded-xl p-4 text-sm text-red-400">
-          <span className="font-medium">Error:</span> {error}
-        </div>
-      )}
-
-      {/* Loading state */}
-      {loading && !data && (
-        <div className="bg-[#141414] border border-white/5 rounded-xl p-8 text-center text-gray-500">
-          <div className="animate-pulse">Loading usage data...</div>
-        </div>
-      )}
-
       {/* Live status note */}
       {data && !error && (
         <div className="bg-[#141414] border border-[#00ff88]/10 rounded-xl p-4 text-xs text-gray-500 leading-relaxed">
-          <span className="text-[#00ff88] font-medium">Live Tracking:</span>{' '}
-          Data refreshes every 30 seconds from Anthropic API. Range: {data.start_date} to {data.end_date}.
-          Last updated: {lastRefresh?.toLocaleTimeString() || 'loading...'}
+          <span className="text-[#00ff88] font-medium">Live</span>{' '}
+          Refreshes every 30s · Range: {data.start_date} → {data.end_date}
+          {lastRefresh && <span> · Last update: {lastRefresh.toLocaleTimeString()}</span>}
         </div>
       )}
     </div>

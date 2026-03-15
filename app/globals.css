@@ -4,24 +4,37 @@
 
 :root {
   --accent: #00ff88;
+  --accent-dim: rgba(0, 255, 136, 0.12);
   --bg: #0f0f0f;
   --sidebar: #1a1a1a;
-  --surface: #242424;
+  --surface: #1a1a1a;
+  --surface-hover: #1e1e1e;
   --border: #2a2a2a;
+  --border-hover: #3a3a3a;
+  --text-primary: #f1f5f9;
+  --text-secondary: #9ca3af;
+  --text-muted: #4b5563;
   color-scheme: dark;
 }
 
 html.light {
-  --accent: #00cc44;
-  --bg: #f5f5f5;
+  --accent: #00b347;
+  --accent-dim: rgba(0, 179, 71, 0.10);
+  --bg: #f4f4f5;
   --sidebar: #ffffff;
-  --surface: #f0f0f0;
-  --border: #e0e0e0;
+  --surface: #ffffff;
+  --surface-hover: #f9f9f9;
+  --border: #e4e4e7;
+  --border-hover: #d1d1d6;
+  --text-primary: #18181b;
+  --text-secondary: #52525b;
+  --text-muted: #a1a1aa;
   color-scheme: light;
 }
 
 html.light body {
-  @apply bg-[#f5f5f5] text-gray-900;
+  background: var(--bg);
+  color: var(--text-primary);
 }
 
 html.light a {
@@ -29,24 +42,52 @@ html.light a {
 }
 
 html.light button {
-  @apply text-gray-900;
+  color: var(--text-primary);
 }
 
 html.light input,
 html.light textarea {
-  @apply bg-white text-gray-900 border-gray-300;
+  background: var(--surface);
+  color: var(--text-primary);
+  border-color: var(--border);
 }
 
 html.light .prose-jarvis code {
-  @apply bg-gray-100 border-gray-300 text-green-700;
+  background: #f0fdf4;
+  border-color: #bbf7d0;
+  color: #15803d;
 }
 
 html.light .prose-jarvis pre {
-  @apply bg-gray-50 border-gray-300;
+  background: #f8fafc;
+  border-color: var(--border);
+}
+
+html.light .prose-jarvis pre code {
+  color: #334155;
 }
 
 html.light .prose-jarvis blockquote {
-  @apply border-green-500 text-gray-700;
+  border-color: var(--accent);
+  color: var(--text-secondary);
+}
+
+html.light .prose-jarvis h1,
+html.light .prose-jarvis h2,
+html.light .prose-jarvis h3 {
+  color: var(--text-primary);
+}
+
+html.light .prose-jarvis strong {
+  color: var(--text-primary);
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #d1d1d6;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #a1a1aa;
 }
 
 * {
@@ -75,6 +116,47 @@ html, body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #444;
+}
+
+/* Focus rings for keyboard nav (WCAG 2.1 AA) */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Remove focus ring on mouse/touch interactions */
+:focus:not(:focus-visible) {
+  outline: none;
+}
+
+/* Skeleton loading animation */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #1e1e1e 25%,
+    #2a2a2a 50%,
+    #1e1e1e 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+  border-radius: 6px;
+}
+
+html.light .skeleton {
+  background: linear-gradient(
+    90deg,
+    #e4e4e7 25%,
+    #d1d1d6 50%,
+    #e4e4e7 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
 }
 
 /* Smooth scrolling in chat */
@@ -133,17 +215,17 @@ html, body {
 }
 
 .prose-jarvis code {
-  background: #1a1a1a;
-  border: 1px solid #333;
+  background: #141414;
+  border: 1px solid #2e2e2e;
   border-radius: 4px;
   padding: 0.1rem 0.35rem;
   font-size: 0.875em;
   font-family: 'Menlo', 'Monaco', monospace;
-  color: #00ff88;
+  color: var(--accent);
 }
 
 .prose-jarvis pre {
-  background: #111;
+  background: #0d0d0d;
   border: 1px solid #2a2a2a;
   border-radius: 8px;
   padding: 1rem;
@@ -155,24 +237,24 @@ html, body {
   background: none;
   border: none;
   padding: 0;
-  color: #e2e8f0;
+  color: #cbd5e1;
   font-size: 0.85em;
 }
 
 .prose-jarvis h1, .prose-jarvis h2, .prose-jarvis h3 {
   font-weight: 600;
   margin: 1rem 0 0.5rem;
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 .prose-jarvis strong {
   font-weight: 600;
-  color: #f1f5f9;
+  color: var(--text-primary);
 }
 
 .prose-jarvis blockquote {
-  border-left: 3px solid #00ff88;
+  border-left: 3px solid var(--accent);
   padding-left: 1rem;
-  color: #94a3b8;
+  color: var(--text-secondary);
   margin: 0.75rem 0;
 }

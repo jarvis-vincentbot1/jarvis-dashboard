@@ -109,16 +109,36 @@ function SignOutIcon() {
 
 // ── Nav config ────────────────────────────────────────────────────────────────
 
-const NAV_ITEMS: { id: NavItem; label: string; Icon: React.FC<{ active: boolean }> }[] = [
-  { id: 'dashboard', label: 'Home',       Icon: GridIcon },
-  { id: 'chat',      label: 'Chat',       Icon: ChatIcon },
-  { id: 'prices',    label: 'Hardware',   Icon: GpuIcon },
-  { id: 'monitoring',label: 'Servers',    Icon: MonitorIcon },
-  { id: 'supervisor',label: 'Supervisor', Icon: SupervisorIcon },
-  { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
-  { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
-  { id: 'usage',     label: 'API Usage',  Icon: UsageIcon },
+const NAV_GROUPS: {
+  label?: string
+  items: { id: NavItem; label: string; Icon: React.FC<{ active: boolean }> }[]
+}[] = [
+  {
+    items: [
+      { id: 'dashboard', label: 'Home',       Icon: GridIcon },
+      { id: 'chat',      label: 'Chat',       Icon: ChatIcon },
+    ],
+  },
+  {
+    label: 'Monitor',
+    items: [
+      { id: 'prices',    label: 'Hardware',   Icon: GpuIcon },
+      { id: 'monitoring',label: 'Servers',    Icon: MonitorIcon },
+      { id: 'usage',     label: 'API Usage',  Icon: UsageIcon },
+    ],
+  },
+  {
+    label: 'Tools',
+    items: [
+      { id: 'supervisor',label: 'Supervisor', Icon: SupervisorIcon },
+      { id: 'todo',      label: 'Tasks',      Icon: TodoIcon },
+      { id: 'calculator',label: 'Calculator', Icon: CalcIcon },
+    ],
+  },
 ]
+
+// Flat list for mobile drawer (order matters)
+const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items)
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -141,25 +161,36 @@ export default function Sidebar({ activeNav, onNavChange, onLogout }: Props) {
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 py-4 px-2 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map(({ id, label, Icon }) => (
-            <button
-              key={id}
-              onClick={() => onNavChange(id)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
-                activeNav === id
-                  ? 'text-[#00ff88] bg-[#00ff88]/10 shadow-inner'
-                  : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
-              }`}
-            >
-              <span className="flex-shrink-0">
-                <Icon active={activeNav === id} />
-              </span>
-              <span className="truncate">{label}</span>
-              {activeNav === id && (
-                <span className="ml-auto w-1 h-4 rounded-full bg-[#00ff88] flex-shrink-0" />
+        <nav className="flex-1 py-3 px-2 overflow-y-auto space-y-4">
+          {NAV_GROUPS.map((group, gi) => (
+            <div key={gi}>
+              {group.label && (
+                <div className="px-3 mb-1">
+                  <span className="text-[9px] text-gray-600 uppercase tracking-widest font-semibold">{group.label}</span>
+                </div>
               )}
-            </button>
+              <div className="space-y-0.5">
+                {group.items.map(({ id, label, Icon }) => (
+                  <button
+                    key={id}
+                    onClick={() => onNavChange(id)}
+                    className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 ${
+                      activeNav === id
+                        ? 'text-[#00ff88] bg-[#00ff88]/10'
+                        : 'text-gray-500 hover:text-gray-200 hover:bg-white/5'
+                    }`}
+                  >
+                    <span className="flex-shrink-0">
+                      <Icon active={activeNav === id} />
+                    </span>
+                    <span className="truncate">{label}</span>
+                    {activeNav === id && (
+                      <span className="ml-auto w-1 h-4 rounded-full bg-[#00ff88] flex-shrink-0" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
           ))}
         </nav>
 

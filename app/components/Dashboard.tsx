@@ -121,7 +121,7 @@ function Widget({ title, dot, children, onClick }: {
   return (
     <div
       onClick={onClick}
-      className={`bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 ${onClick ? 'cursor-pointer hover:border-[#3a3a3a] hover:bg-[#1e1e1e] transition-colors' : ''}`}
+      className={`bg-[#141414] border border-white/[0.06] rounded-xl p-4 ${onClick ? 'cursor-pointer hover:border-white/10 hover:bg-[#181818] transition-colors' : ''}`}
     >
       <div className="flex items-center gap-2 mb-3">
         {dot && <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: dot }} />}
@@ -176,9 +176,11 @@ function AIStatusWidget() {
   return (
     <Widget title="AI Status" dot="#a855f7">
       {status === null ? (
-        <div className="flex items-center gap-2 py-1">
-          <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-gray-600">Checking…</span>
+        <div className="space-y-2.5">
+          <div className="skeleton h-4 w-full" />
+          <div className="skeleton h-px w-full" />
+          <div className="skeleton h-4 w-3/4" />
+          <div className="skeleton h-4 w-2/3" />
         </div>
       ) : (
         <div className="space-y-2.5">
@@ -231,9 +233,11 @@ function UsageWidget() {
   return (
     <Widget title="Claude Usage — Today" dot="#a855f7">
       {usage === null ? (
-        <div className="flex items-center gap-2 py-1">
-          <div className="w-3 h-3 border border-purple-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-gray-600">Loading…</span>
+        <div className="space-y-2.5">
+          <div className="skeleton h-4 w-full" />
+          <div className="skeleton h-4 w-full" />
+          <div className="skeleton h-px w-full" />
+          <div className="skeleton h-4 w-1/2" />
         </div>
       ) : usage.error ? (
         <p className="text-sm text-gray-600 italic">Usage data unavailable</p>
@@ -272,7 +276,7 @@ function UsageWidget() {
 // ── Quick stats ───────────────────────────────────────────────────────────────
 
 function QuickStat({ value, label, color, onClick }: {
-  value: string | number
+  value: string | number | null
   label: string
   color: string
   onClick?: () => void
@@ -280,10 +284,19 @@ function QuickStat({ value, label, color, onClick }: {
   return (
     <div
       onClick={onClick}
-      className={`bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-3 text-center ${onClick ? 'cursor-pointer hover:border-[#3a3a3a] transition-colors' : ''}`}
+      className={`bg-[#141414] border border-white/[0.06] rounded-xl p-3 text-center ${onClick ? 'cursor-pointer hover:border-white/10 hover:bg-[#181818] transition-colors group' : ''}`}
     >
-      <div className="text-xl font-bold tabular-nums" style={{ color }}>{value}</div>
-      <div className="text-[10px] text-gray-600 uppercase tracking-wider mt-0.5">{label}</div>
+      {value === null ? (
+        <>
+          <div className="skeleton h-7 w-12 mx-auto mb-1.5" />
+          <div className="skeleton h-2.5 w-16 mx-auto" />
+        </>
+      ) : (
+        <>
+          <div className="text-xl font-bold tabular-nums transition-transform group-hover:scale-105" style={{ color }}>{value}</div>
+          <div className="text-[10px] text-gray-600 uppercase tracking-wider mt-0.5">{label}</div>
+        </>
+      )}
     </div>
   )
 }
@@ -319,9 +332,9 @@ function QuickStatsRow({ allChats, onNavChange }: { allChats: Chat[]; onNavChang
   const allOnline = serverStatus != null && serverStatus.online === serverStatus.total && serverStatus.total > 0
 
   return (
-    <div className="grid grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
       <QuickStat
-        value={todoCount ?? '…'}
+        value={todoCount}
         label="Open tasks"
         color="#00ff88"
         onClick={() => onNavChange?.('todo')}
@@ -333,13 +346,13 @@ function QuickStatsRow({ allChats, onNavChange }: { allChats: Chat[]; onNavChang
         onClick={() => onNavChange?.('chat')}
       />
       <QuickStat
-        value={hwCount ?? '…'}
+        value={hwCount}
         label="Hardware"
         color="#f97316"
         onClick={() => onNavChange?.('prices')}
       />
       <QuickStat
-        value={serverStatus == null ? '…' : `${serverStatus.online}/${serverStatus.total}`}
+        value={serverStatus == null ? null : `${serverStatus.online}/${serverStatus.total}`}
         label="Servers"
         color={allOnline ? '#00ff88' : '#ef4444'}
         onClick={() => onNavChange?.('monitoring')}
@@ -438,9 +451,11 @@ function ServerOverviewWidget({ onNavChange }: { onNavChange?: (nav: string) => 
   return (
     <Widget title="Servers" dot="#3b82f6" onClick={() => onNavChange?.('monitoring')}>
       {hosts === null ? (
-        <div className="flex items-center gap-2 py-1">
-          <div className="w-3 h-3 border border-blue-400 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs text-gray-600">Loading…</span>
+        <div className="space-y-2.5">
+          <div className="skeleton h-3.5 w-3/4" />
+          <div className="skeleton h-1 w-full" />
+          <div className="skeleton h-3.5 w-2/3" />
+          <div className="skeleton h-1 w-full" />
         </div>
       ) : hosts.length === 0 ? (
         <p className="text-sm text-gray-600 italic">No hosts</p>
@@ -502,7 +517,7 @@ function RecentChats({ allChats, onOpenChat }: { allChats: Chat[]; onOpenChat: (
         <button
           key={chat.id}
           onClick={() => onOpenChat(chat.id)}
-          className="text-left bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 hover:border-[#3a3a3a] hover:bg-[#1f1f1f] transition-colors"
+          className="text-left bg-[#141414] border border-white/[0.06] rounded-xl p-4 hover:border-white/10 hover:bg-[#181818] transition-colors group"
         >
           <div className="flex items-center justify-between gap-3 mb-2">
             <span className="font-medium text-gray-200 text-sm truncate">{chat.name}</span>
@@ -562,12 +577,12 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
 
   return (
     <div className="min-h-full bg-[#0f0f0f]">
-      <div className="max-w-4xl w-full mx-auto p-4 md:p-6 space-y-6">
+      <div className="max-w-4xl w-full mx-auto p-4 md:p-6 space-y-5">
 
         {/* Greeting */}
-        <div className="flex items-end justify-between gap-3">
+        <div className="flex items-start justify-between gap-3 pt-1">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-100">
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-100 leading-tight">
               Good {getGreeting()}, Vincent
             </h1>
             <p className="text-gray-500 text-sm mt-1">
