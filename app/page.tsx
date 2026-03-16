@@ -16,6 +16,7 @@ import GPUInventory from './components/GPUInventory'
 import ProductResearchTabs from './components/ProductResearch'
 import SettingsPage from './components/Settings'
 import OrderTracking from './components/OrderTracking'
+import VPSDetails from './components/VPSDetails'
 
 interface Chat {
   id: string
@@ -173,6 +174,8 @@ export default function DashboardPage() {
             <VatCalculator />
           ) : activeNav === 'monitoring' ? (
             <Monitoring />
+          ) : activeNav === 'vps' ? (
+            <VPSDetails />
           ) : activeNav === 'prices' ? (
             <>
               <PriceTracker />

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ThemeToggle } from './ThemeToggle'
 
-export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research' | 'settings' | 'orders'
+export type NavItem = 'dashboard' | 'chat' | 'calculator' | 'monitoring' | 'supervisor' | 'todo' | 'prices' | 'usage' | 'gpu-inventory' | 'product-research' | 'settings' | 'orders' | 'vps'
 
 interface Props {
   activeNav: NavItem
@@ -125,6 +125,18 @@ function SettingsIcon({ active }: { active: boolean }) {
   )
 }
 
+function VPSIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.2 : 1.7} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="3" width="20" height="14" rx="2" />
+      <path d="M8 21h8M6 17h12M12 17v4" />
+      <circle cx="7" cy="8" r="1" fill="currentColor" />
+      <circle cx="12" cy="8" r="1" fill="currentColor" />
+      <circle cx="17" cy="8" r="1" fill="currentColor" />
+    </svg>
+  )
+}
+
 function SignOutIcon() {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -158,6 +170,7 @@ const NAV_GROUPS: {
     label: 'Monitor',
     items: [
       { id: 'monitoring', label: 'Servers',      Icon: MonitorIcon },
+      { id: 'vps',        label: 'VPS Details',  Icon: VPSIcon },
       { id: 'usage',      label: 'API Usage',    Icon: UsageIcon },
       { id: 'supervisor', label: 'Automation',   Icon: SupervisorIcon },
     ],

@@ -552,6 +552,75 @@ function RecentChats({ allChats, onOpenChat }: { allChats: Chat[]; onOpenChat: (
   )
 }
 
+// ── VPS Status widget ────────────────────────────────────────────────────────
+
+function VPSStatusWidget({ onNavChange }: { onNavChange?: (nav: string) => void }) {
+  const [vpsData, setVpsData] = useState<{ status: string; hostname: string; system?: { cpuUsage: number; uptime: string } } | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetch('/api/vps/details')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        setVpsData(d ?? null)
+        setLoading(false)
+      })
+      .catch(() => {
+        setLoading(false)
+        setVpsData(null)
+      })
+  }, [])
+
+  return (
+    <Widget title="VPS Status" dot="#00ff88" onClick={() => onNavChange?.('vps')}>
+      {loading ? (
+        <div className="space-y-2.5">
+          <div className="skeleton h-3.5 w-full" />
+          <div className="skeleton h-1 w-full" />
+        </div>
+      ) : vpsData ? (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-gray-500">Status</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 rounded-full bg-[#00ff88]" />
+              <span className="text-sm text-gray-200 font-medium">{vpsData.hostname}</span>
+            </div>
+          </div>
+          {vpsData.system && (
+            <>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-500">CPU Usage</span>
+                <span className="text-gray-300">{vpsData.system.cpuUsage.toFixed(1)}%</span>
+              </div>
+              <div className="flex gap-2 h-1">
+                <div className="flex-1 bg-[#2a2a2a] rounded-full overflow-hidden">
+                  <div
+                    className="h-full rounded-full"
+                    style={{
+                      width: `${Math.min(vpsData.system.cpuUsage, 100)}%`,
+                      backgroundColor: vpsData.system.cpuUsage > 90 ? '#ef4444' : vpsData.system.cpuUsage > 70 ? '#f97316' : '#00ff88'
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between text-xs pt-1">
+                <span className="text-gray-500">Uptime</span>
+                <span className="text-gray-300">{vpsData.system.uptime}</span>
+              </div>
+            </>
+          )}
+          <div className="text-xs text-gray-600 pt-1">
+            Click to view full details →
+          </div>
+        </div>
+      ) : (
+        <p className="text-sm text-gray-600 italic">VPS details unavailable</p>
+      )}
+    </Widget>
+  )
+}
+
 // ── Current model badge ───────────────────────────────────────────────────────
 
 function ModelBadge() {
@@ -651,6 +720,9 @@ export default function Dashboard({ allChats, onOpenChat, onNavChange }: Props) 
           <BestPriceWidget onNavChange={onNavChange} />
           <ServerOverviewWidget onNavChange={onNavChange} />
         </div>
+
+        {/* VPS Details Card */}
+        <VPSStatusWidget onNavChange={onNavChange} />
 
         {/* Recent chats */}
         <div>
