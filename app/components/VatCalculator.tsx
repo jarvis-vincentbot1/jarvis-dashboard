@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
+import ShippingCalculator from './ShippingCalculator'
 
 interface CalcEntry {
   date: string
@@ -25,6 +26,7 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000 // 24h
 type RateStatus = 'live' | 'cached' | 'fallback'
 
 export default function VatCalculator() {
+  const [activeTab, setActiveTab] = useState<'vat' | 'shipping'>('vat')
   const [buyEur, setBuyEur] = useState('')
   const [sellUsd, setSellUsd] = useState('')
   const [quantity, setQuantity] = useState('1')
@@ -183,12 +185,48 @@ export default function VatCalculator() {
     <div className="min-h-full bg-[#0f0f0f]">
       <div className="max-w-2xl w-full mx-auto p-4 pb-8 space-y-4">
 
-        {/* Header */}
+        {/* Header with Tabs */}
         <div>
-          <h2 className="text-[#00ff88] font-bold text-lg tracking-wide">VAT Calculator</h2>
-          <p className="text-gray-500 text-xs mt-0.5">Buy incl. 21% Dutch VAT → Sell in USD excl. VAT</p>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-[#00ff88] font-bold text-lg tracking-wide">Calculator</h2>
+          </div>
+          
+          {/* Tab Switcher */}
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setActiveTab('vat')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'vat'
+                  ? 'bg-[#00ff88] text-[#0f0f0f]'
+                  : 'bg-[#2a2a2a] text-gray-300 hover:bg-[#3a3a3a]'
+              }`}
+            >
+              VAT Calculator
+            </button>
+            <button
+              onClick={() => setActiveTab('shipping')}
+              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                activeTab === 'shipping'
+                  ? 'bg-[#00ff88] text-[#0f0f0f]'
+                  : 'bg-[#2a2a2a] text-gray-300 hover:bg-[#3a3a3a]'
+              }`}
+            >
+              Shipping Calculator
+            </button>
+          </div>
+          
+          {/* Tab Description */}
+          {activeTab === 'vat' && (
+            <p className="text-gray-500 text-xs mt-0.5">Buy incl. 21% Dutch VAT → Sell in USD excl. VAT</p>
+          )}
+          {activeTab === 'shipping' && (
+            <p className="text-gray-500 text-xs mt-0.5">Calculate shipping costs and profit margins by carrier and destination</p>
+          )}
         </div>
 
+        {/* VAT Calculator Tab */}
+        {activeTab === 'vat' && (
+        <>
         {/* Inputs */}
         <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4 space-y-3">
           <h3 className="text-gray-400 text-xs uppercase tracking-widest">Inputs</h3>
@@ -341,6 +379,15 @@ export default function VatCalculator() {
                 </div>
               ))}
             </div>
+          </div>
+        )}
+        </>
+        )}
+
+        {/* Shipping Calculator Tab */}
+        {activeTab === 'shipping' && (
+          <div className="bg-[#1a1a1a] border border-[#2a2a2a] rounded-xl p-4">
+            <ShippingCalculator />
           </div>
         )}
 
